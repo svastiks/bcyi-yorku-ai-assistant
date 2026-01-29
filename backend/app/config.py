@@ -1,0 +1,37 @@
+"""Application configuration"""
+from pydantic_settings import BaseSettings
+from typing import List
+
+
+class Settings(BaseSettings):
+    """Application settings loaded from environment variables"""
+    
+    # MongoDB
+    mongodb_uri: str = "mongodb://localhost:27017"
+    database_name: str = "bcyi_assistant"
+    
+    # Google Drive
+    google_client_id: str = ""
+    google_client_secret: str = ""
+    google_redirect_uri: str = "http://localhost:8000/auth/callback"
+    
+    # Gemini API
+    gemini_api_key: str = ""
+    
+    # App Config
+    environment: str = "development"
+    debug: bool = True
+    cors_origins: str = "http://localhost:3000"
+    
+    @property
+    def cors_origins_list(self) -> List[str]:
+        """Parse CORS origins from comma-separated string"""
+        return [origin.strip() for origin in self.cors_origins.split(",")]
+    
+    class Config:
+        env_file = ".env"
+        case_sensitive = False
+
+
+# Global settings instance
+settings = Settings()
