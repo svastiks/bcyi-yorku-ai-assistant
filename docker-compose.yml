@@ -1,0 +1,78 @@
+version: '3.8'
+
+services:
+  # MongoDB Database
+  mongodb:
+    image: mongo:7.0
+    container_name: bcyi-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_DATABASE: bcyi_assistant
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - bcyi-network
+
+  # Python Backend (FastAPI)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: bcyi-backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      # MongoDB
+      - MONGODB_URI=mongodb://mongodb:27017
+      - DATABASE_NAME=bcyi_assistant
+      
+      # Google Drive (Add your credentials here or use .env file)
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-}
+      - GOOGLE_REDIRECT_URI=${GOOGLE_REDIRECT_URI:-http://localhost:8000/auth/callback}
+      
+      # Gemini API
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      
+      # App Config
+      - ENVIRONMENT=development
+      - DEBUG=True
+      - CORS_ORIGINS=http://localhost:3000,http://frontend:3000
+    volumes:
+      - ./backend:/app
+    depends_on:
+      - mongodb
+    networks:
+      - bcyi-network
+
+  # Next.js Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: bcyi-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - BACKEND_URL=http://backend:8000
+      - NEXT_PUBLIC_BACKEND_URL=http://localhost:8000
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    depends_on:
+      - backend
+    networks:
+      - bcyi-network
+
+networks:
+  bcyi-network:
+    driver: bridge
+
+volumes:
+  mongodb_data:
+    driver: local
