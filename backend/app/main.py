@@ -1,10 +1,10 @@
 """FastAPI application entry point"""
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from app.config import settings
 from app.api.routes import chat, content, drive
-from app.database.mongodb import MongoDB
 
 
 @asynccontextmanager
@@ -12,11 +12,9 @@ async def lifespan(app: FastAPI):
     """Application lifespan events"""
     # Startup
     print("Starting up BCYI AI Assistant API...")
-    await MongoDB.connect()
     yield
     # Shutdown
     print("Shutting down BCYI AI Assistant API...")
-    await MongoDB.close()
 
 
 # Create FastAPI app
@@ -57,3 +55,12 @@ async def root():
 async def health_check():
     """Health check endpoint"""
     return {"status": "healthy"}
+
+
+@app.get("/auth/callback")
+async def auth_callback_legacy(request: Request):
+    """Legacy redirect: /auth/callback -> /api/drive/auth/callback (same query params)."""
+    base = f"{request.url.scheme}://{request.url.netloc}"
+    path = "/api/drive/auth/callback"
+    q = str(request.url.query)
+    return RedirectResponse(url=f"{base}{path}?{q}" if q else f"{base}{path}")

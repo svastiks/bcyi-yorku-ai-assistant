@@ -6,14 +6,11 @@ from typing import List
 class Settings(BaseSettings):
     """Application settings loaded from environment variables"""
     
-    # MongoDB
-    mongodb_uri: str = "mongodb://localhost:27017"
-    database_name: str = "bcyi_assistant"
-    
-    # Google Drive
+    # Google Drive OAuth
     google_client_id: str = ""
     google_client_secret: str = ""
-    google_redirect_uri: str = "http://localhost:8000/auth/callback"
+    google_redirect_uri: str = "http://localhost:8000/api/drive/auth/callback"
+    frontend_url: str = "http://localhost:3000"
     
     # Gemini API
     gemini_api_key: str = ""
