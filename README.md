@@ -2,6 +2,12 @@
 
 AI-powered content generation assistant for Black Creek Youth Initiative, helping create newsletters, blog posts, donor emails, social media content, and more with context from Google Drive.
 
+## Demo
+
+https://github.com/user-attachments/assets/bd7ab1be-3668-4aa3-a080-8cd4455c231c
+
+https://github.com/user-attachments/assets/b67f9da5-6e71-4a84-b43f-c0c493863227
+
 ## Technologies
 
 - FastAPI
