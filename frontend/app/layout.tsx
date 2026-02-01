@@ -10,7 +10,6 @@ const _geistMono = Geist_Mono({ subsets: ["latin"] });
 export const metadata: Metadata = {
   title: 'BCYI x YorkU AI Assistant',
   description: 'AI-powered content assistant for Black Creek Youth Initiative and York University',
-  generator: 'v0.app',
   icons: {
     icon: [
       {

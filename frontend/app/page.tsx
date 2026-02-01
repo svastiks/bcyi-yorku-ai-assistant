@@ -7,7 +7,8 @@ import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Card } from '@/components/ui/card'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { SendHorizontal, Sparkles, Menu, Plus } from 'lucide-react'
+import { SendHorizontal, Sparkles, Menu, Plus, FolderInput } from 'lucide-react'
+import ReactMarkdown from 'react-markdown'
 import { cn } from '@/lib/utils'
 
 type Message = {
@@ -24,6 +25,7 @@ type ChatSession = {
   contentType: ContentType
   createdAt: Date
   updatedAt: Date
+  backendChatId?: string | null
 }
 
 type ContentType = 'newsletter' | 'blog-post' | 'donor-email' | 'social-media' | 'general'
@@ -36,17 +38,134 @@ const contentTypes = [
   { value: 'general', label: 'General', icon: '💬' },
 ]
 
+const CHAT_STORAGE_KEY = 'bcyi_chats'
+
+function loadChatsFromStorage(): { sessions: ChatSession[]; currentId: string | null } {
+  if (typeof window === 'undefined') return { sessions: [], currentId: null }
+  try {
+    const raw = localStorage.getItem(CHAT_STORAGE_KEY)
+    if (!raw) return { sessions: [], currentId: null }
+    const { sessions, currentId } = JSON.parse(raw)
+    const sessionsWithDates = (sessions || []).map((s: { messages?: Array<Message & { timestamp?: string | Date }>; createdAt?: string; updatedAt?: string; [k: string]: unknown }) => ({
+      ...s,
+      messages: (s.messages || []).map((m) => ({
+        ...m,
+        timestamp: m.timestamp instanceof Date ? m.timestamp : new Date((m.timestamp as string) || 0),
+      })),
+      createdAt: s.createdAt ? new Date(s.createdAt) : new Date(),
+      updatedAt: s.updatedAt ? new Date(s.updatedAt) : new Date(),
+    })) as ChatSession[]
+    return { sessions: sessionsWithDates, currentId: currentId || null }
+  } catch {
+    return { sessions: [], currentId: null }
+  }
+}
+
+function saveChatsToStorage(sessions: ChatSession[], currentId: string | null) {
+  if (typeof window === 'undefined') return
+  try {
+    localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify({
+      sessions: sessions.map(s => ({
+        ...s,
+        messages: s.messages.map(m => ({ ...m, timestamp: m.timestamp.toISOString() })),
+        createdAt: s.createdAt.toISOString(),
+        updatedAt: s.updatedAt.toISOString(),
+      })),
+      currentId: currentId,
+    }))
+  } catch (_) {}
+}
+
 export default function ChatPage() {
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([])
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [sorting, setSorting] = useState(false)
+  const [listing, setListing] = useState(false)
+  const [driveConnected, setDriveConnected] = useState<boolean | null>(null)
   const [selectedType, setSelectedType] = useState<ContentType>('general')
+  const [hydrated, setHydrated] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const retryOnLoadRef = useRef(false)
 
   const currentSession = chatSessions.find(s => s.id === currentSessionId)
+
+  const sendMessageToApi = async (messageContent: string, contentType: ContentType, backendChatId: string | null, history: Message[]) => {
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: messageContent, contentType, history, chatId: backendChatId }),
+    })
+    if (!res.ok) throw new Error('Failed to fetch response')
+    const data = await res.json()
+    const newBackendId = data.chatId || null
+    if (newBackendId && currentSessionId) {
+      setChatSessions((prev) => prev.map((s) => (s.id === currentSessionId ? { ...s, backendChatId: newBackendId } : s)))
+    }
+    const assistantMessage: Message = {
+      id: (Date.now() + 1).toString(),
+      role: 'assistant',
+      content: data.message || 'Hello! I\'m your BCYI x YorkU AI assistant. I can help you create newsletters, blog posts, donor emails, social media captions, and more!',
+      timestamp: new Date(),
+    }
+    setMessages((prev) => [...prev, assistantMessage])
+  }
+
+  useEffect(() => {
+    const { sessions, currentId } = loadChatsFromStorage()
+    if (sessions.length > 0) {
+      setChatSessions(sessions)
+      setCurrentSessionId(currentId)
+      const current = sessions.find(s => s.id === currentId)
+      if (current) {
+        setMessages(current.messages)
+        if (current.contentType) setSelectedType(current.contentType)
+        if (current.messages.length > 0 && current.messages[current.messages.length - 1].role === 'user') {
+          retryOnLoadRef.current = true
+        }
+      }
+    }
+    setHydrated(true)
+  }, [])
+  useEffect(() => {
+    if (!hydrated) return
+    saveChatsToStorage(chatSessions, currentSessionId)
+  }, [hydrated, chatSessions, currentSessionId])
+  useEffect(() => {
+    if (!hydrated || !retryOnLoadRef.current || !currentSessionId || messages.length === 0) return
+    const last = messages[messages.length - 1]
+    if (last.role !== 'user') return
+    retryOnLoadRef.current = false
+    setIsLoading(true)
+    sendMessageToApi(last.content, selectedType, currentSession?.backendChatId ?? null, messages.slice(0, -1))
+      .catch(() => {
+        setMessages((prev) => [...prev, {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant',
+          content: 'Response was interrupted. Please try sending again.',
+          timestamp: new Date(),
+        }])
+      })
+      .finally(() => setIsLoading(false))
+  }, [hydrated, currentSessionId, messages.length, selectedType])
+
+  useEffect(() => {
+    fetch('/api/drive/auth/status').then(r => r.json()).then(d => setDriveConnected(d.connected)).catch(() => setDriveConnected(false))
+  }, [])
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('drive_connected') === '1') {
+      setDriveConnected(true)
+      window.history.replaceState({}, '', window.location.pathname)
+    }
+    if (params.get('drive_error')) {
+      alert('Drive connect error: ' + params.get('drive_error'))
+      window.history.replaceState({}, '', window.location.pathname)
+    }
+  }, [])
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -137,44 +256,15 @@ export default function ChatPage() {
     setIsLoading(true)
 
     try {
-      // Call the Next.js API route which proxies to the backend
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: input,
-          contentType: selectedType,
-          history: messages,
-          chatId: currentSessionId,
-        }),
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch response')
-      }
-
-      const data = await response.json()
-
-      const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: data.message || 'Hello! I\'m your BCYI x YorkU AI assistant. I can help you create newsletters, blog posts, donor emails, social media captions, and more!',
-        timestamp: new Date(),
-      }
-
-      setMessages((prev) => [...prev, assistantMessage])
+      await sendMessageToApi(input, selectedType, currentSession?.backendChatId ?? null, messages)
     } catch (error) {
-      console.error('[v0] Chat error:', error)
-      
-      // Fallback demo response
-      const assistantMessage: Message = {
+      console.error('[bcyi-ai-assistant] Chat error:', error)
+      setMessages((prev) => [...prev, {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: 'Hello! I\'m your BCYI x YorkU AI assistant. I can help you create newsletters, blog posts, donor emails, social media captions, and more! Currently in demo mode - please connect your backend API.',
+        content: 'Hello! I\'m your BCYI x YorkU AI assistant. Currently in demo mode - please connect your backend API.',
         timestamp: new Date(),
-      }
-
-      setMessages((prev) => [...prev, assistantMessage])
+      }])
     } finally {
       setIsLoading(false)
     }
@@ -187,7 +277,67 @@ export default function ChatPage() {
     }
   }
 
-  const startNewChat = createNewChat; // Declare startNewChat variable
+  const disconnectDrive = async () => {
+    try {
+      const res = await fetch('/api/drive/auth/disconnect', { method: 'POST' })
+      if (!res.ok) throw new Error((await res.json()).error || 'Disconnect failed')
+      setDriveConnected(false)
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Disconnect failed')
+    }
+  }
+
+  const connectDrive = async () => {
+    try {
+      const res = await fetch('/api/drive/auth/url')
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to get auth URL')
+      window.location.href = data.url
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Connect failed')
+    }
+  }
+
+  const listDriveFiles = async () => {
+    setListing(true)
+    try {
+      const res = await fetch('/api/drive/files?read_sample=test_event_summary')
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'List failed')
+      const lines = [
+        `Files read (${data.count}): ${(data.file_names || []).join(', ') || 'none'}`,
+        '',
+      ]
+      if (data.read_sample?.found === false) lines.push(`Read sample "test_event_summary": not found`)
+      else if (data.read_sample?.content_preview) lines.push(`Read sample "${data.read_sample.file_name}":\n${data.read_sample.content_preview}`)
+      alert(lines.join('\n'))
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'List failed')
+    } finally {
+      setListing(false)
+    }
+  }
+
+  const sortDrive = async () => {
+    setSorting(true)
+    try {
+      const res = await fetch('/api/drive/sort', { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Sort failed')
+      const lines = [data.message, '']
+      if (data.stats) lines.push(`Stats: ${JSON.stringify(data.stats)}`)
+      if (data.files_found?.length) lines.push('Files found: ' + data.files_found.map((f: { name: string }) => f.name).join(', '))
+      if (data.folders_created?.length) lines.push('Folders created: ' + data.folders_created.join(', '))
+      if (data.sorted?.length) lines.push('Sorted: ' + data.sorted.map((s: { name: string; target_folder: string }) => `${s.name} → ${s.target_folder}`).join('; '))
+      if (data.skipped?.length) lines.push('Skipped: ' + data.skipped.map((s: { name: string; reason?: string }) => s.name + (s.reason ? ` (${s.reason})` : '')).join(', '))
+      if (data.failed?.length) lines.push('Failed: ' + data.failed.map((f: { name: string; reason?: string }) => f.name + (f.reason ? ` (${f.reason})` : '')).join(', '))
+      alert(lines.join('\n'))
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Sort failed')
+    } finally {
+      setSorting(false)
+    }
+  }
 
   return (
     <div className="flex h-screen bg-background">
@@ -306,6 +456,28 @@ export default function ChatPage() {
               <Button variant="ghost" size="icon" className="lg:hidden">
                 <Menu className="w-5 h-5" />
               </Button>
+              {driveConnected ? (
+                <Button variant="outline" size="sm" onClick={disconnectDrive} className="shrink-0">
+                  Disconnect Drive
+                </Button>
+              ) : (
+                <Button variant="outline" size="sm" onClick={connectDrive} className="shrink-0">
+                  Connect Google Drive
+                </Button>
+              )}
+              <Button variant="outline" size="sm" onClick={listDriveFiles} disabled={listing} className="shrink-0">
+                {listing ? 'Listing…' : 'List files'}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={sortDrive}
+                disabled={sorting}
+                className="shrink-0"
+              >
+                <FolderInput className="w-4 h-4 mr-2" />
+                {sorting ? 'Sorting…' : 'Sort Drive'}
+              </Button>
               <div>
                 <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
                   <Sparkles className="w-5 h-5 text-primary" />
@@ -380,7 +552,13 @@ export default function ChatPage() {
                         : 'bg-card border border-border text-foreground'
                     )}
                   >
-                    <p className="whitespace-pre-wrap leading-relaxed">{message.content}</p>
+                    {message.role === 'assistant' ? (
+                      <div className="leading-relaxed [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_h1]:font-bold [&_h2]:font-bold [&_h3]:font-bold [&_p]:my-2 [&_p:first-child]:mt-0 [&_p:last-child]:mb-0">
+                        <ReactMarkdown>{message.content}</ReactMarkdown>
+                      </div>
+                    ) : (
+                      <p className="whitespace-pre-wrap leading-relaxed">{message.content}</p>
+                    )}
                     <p
                       className={cn(
                         'text-xs mt-2',
