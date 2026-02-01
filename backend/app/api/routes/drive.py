@@ -1,106 +1,100 @@
 """Google Drive management API endpoints"""
-from fastapi import APIRouter, HTTPException, Depends, Query
+from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import RedirectResponse
 from app.services.google_drive import GoogleDriveService
 from app.services.file_sorter import FileSorter
 from app.utils.auth import GoogleAuthHandler
-from app.database.mongodb import get_database
-from motor.motor_asyncio import AsyncIOMotorDatabase
+from app.config import settings
 from typing import Optional, Dict
 from datetime import datetime
+import json
+import os
 
 router = APIRouter()
 
+CREDENTIALS_FILE = "drive_credentials.json"
+STATE_FILE = "drive_auth_state.json"
 
-@router.get("/auth")
-async def initiate_auth():
-    """Initiate Google Drive OAuth flow"""
+
+def get_oauth_credentials():
+    """Load OAuth token from file; return Credentials or None."""
+    if not os.path.exists(CREDENTIALS_FILE):
+        return None
     try:
-        authorization_url, state = GoogleAuthHandler.get_authorization_url()
-        
-        # In production, store state in session/database for verification
-        
-        return {
-            "authorization_url": authorization_url,
-            "state": state
-        }
-    
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to initiate auth: {str(e)}")
+        with open(CREDENTIALS_FILE, "r") as f:
+            data = json.load(f)
+        token = data.get("token_data")
+        if not token:
+            return None
+        creds = GoogleAuthHandler.create_credentials_from_token(token)
+        creds = GoogleAuthHandler.refresh_token_if_needed(creds)
+        return creds
+    except Exception:
+        return None
+
+
+def get_drive_credentials():
+    """Return OAuth credentials for Drive; raise 401 if not connected."""
+    creds = get_oauth_credentials()
+    if creds is None:
+        raise HTTPException(status_code=401, detail="Connect Google Drive first (OAuth)")
+    return creds
+
+
+@router.get("/auth/url")
+async def get_auth_url():
+    """Return OAuth URL for user to connect their Google Drive."""
+    if not settings.google_client_id or not settings.google_client_secret:
+        raise HTTPException(status_code=503, detail="OAuth not configured (GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET)")
+    url, state = GoogleAuthHandler.get_authorization_url()
+    with open(STATE_FILE, "w") as f:
+        json.dump({"state": state}, f)
+    return {"url": url, "state": state}
 
 
 @router.get("/auth/callback")
-async def auth_callback(
-    code: str = Query(...),
-    state: str = Query(...),
-    db: AsyncIOMotorDatabase = Depends(get_database)
-):
-    """Handle OAuth callback"""
+async def auth_callback(code: Optional[str] = None, state: Optional[str] = None):
+    """Exchange code for token and store; redirect to frontend."""
+    if not code or not state:
+        return RedirectResponse(url=f"{settings.frontend_url}?drive_error=missing_params")
     try:
-        # Exchange code for token
+        with open(STATE_FILE, "r") as f:
+            stored = json.load(f)
+        if stored.get("state") != state:
+            return RedirectResponse(url=f"{settings.frontend_url}?drive_error=invalid_state")
         token_data = GoogleAuthHandler.exchange_code_for_token(code, state)
-        
-        # Store token in database
-        # In production, associate with user account
-        await db.credentials.update_one(
-            {"type": "google_drive"},
-            {
-                "$set": {
-                    "token_data": token_data,
-                    "updated_at": datetime.utcnow()
-                }
-            },
-            upsert=True
-        )
-        
-        return {
-            "message": "Authentication successful",
-            "redirect_to": "/api/drive/status"
-        }
-    
+        with open(CREDENTIALS_FILE, "w") as f:
+            json.dump({"token_data": token_data}, f)
+        if os.path.exists(STATE_FILE):
+            os.remove(STATE_FILE)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Authentication failed: {str(e)}")
+        return RedirectResponse(url=f"{settings.frontend_url}?drive_error={str(e)[:50]}")
+    return RedirectResponse(url=f"{settings.frontend_url}?drive_connected=1")
+
+
+@router.get("/auth/status")
+async def auth_status():
+    """Return whether user has connected Google Drive (OAuth)."""
+    creds = get_oauth_credentials()
+    return {"connected": creds is not None}
+
+
+@router.post("/auth/disconnect")
+async def auth_disconnect():
+    """Clear stored OAuth token."""
+    if os.path.exists(CREDENTIALS_FILE):
+        os.remove(CREDENTIALS_FILE)
+    return {"message": "Disconnected"}
 
 
 @router.post("/sync")
-async def sync_drive(
-    db: AsyncIOMotorDatabase = Depends(get_database)
-):
-    """Trigger file sync from Google Drive"""
+async def sync_drive():
+    """Trigger file sync from Google Drive (OAuth)."""
     try:
-        # Get credentials
-        creds_doc = await db.credentials.find_one({"type": "google_drive"})
-        if not creds_doc:
-            raise HTTPException(status_code=401, detail="Not authenticated with Google Drive")
-        
-        token_data = creds_doc.get('token_data')
-        credentials = GoogleAuthHandler.create_credentials_from_token(token_data)
-        
-        # Create Drive service
+        credentials = get_drive_credentials()
         drive_service = GoogleDriveService(credentials)
-        
-        # List all files
         files = drive_service.list_files()
-        
-        # Store sync status
-        await db.sync_status.update_one(
-            {"type": "drive_sync"},
-            {
-                "$set": {
-                    "last_sync": datetime.utcnow(),
-                    "files_found": len(files),
-                    "status": "completed"
-                }
-            },
-            upsert=True
-        )
-        
-        return {
-            "message": "Sync completed",
-            "files_found": len(files),
-            "timestamp": datetime.utcnow().isoformat()
-        }
-    
+        return {"message": "Sync completed", "files_found": len(files), "timestamp": datetime.utcnow().isoformat()}
     except HTTPException:
         raise
     except Exception as e:
@@ -108,109 +102,53 @@ async def sync_drive(
 
 
 @router.post("/sort")
-async def sort_files(
-    source_folder_id: Optional[str] = None,
-    parent_folder_id: Optional[str] = None,
-    db: AsyncIOMotorDatabase = Depends(get_database)
-):
-    """Run file sorting algorithm"""
+async def sort_files():
+    """Run file sorting algorithm - uses OAuth Drive."""
     try:
-        # Get credentials
-        creds_doc = await db.credentials.find_one({"type": "google_drive"})
-        if not creds_doc:
-            raise HTTPException(status_code=401, detail="Not authenticated with Google Drive")
-        
-        token_data = creds_doc.get('token_data')
-        credentials = GoogleAuthHandler.create_credentials_from_token(token_data)
-        
-        # Create services
+        credentials = get_drive_credentials()
         drive_service = GoogleDriveService(credentials)
         file_sorter = FileSorter(drive_service)
         
-        # Sort files
-        stats = file_sorter.sort_all_files(
-            source_folder_id=source_folder_id,
-            parent_for_organization=parent_folder_id
-        )
-        
-        # Store sorting status
-        await db.sync_status.update_one(
-            {"type": "file_sorting"},
-            {
-                "$set": {
-                    "last_sort": datetime.utcnow(),
-                    "stats": stats,
-                    "status": "completed"
-                }
-            },
-            upsert=True
-        )
-        
+        result = file_sorter.sort_all_files()
         return {
             "message": "Sorting completed",
-            "stats": stats,
-            "timestamp": datetime.utcnow().isoformat()
+            "stats": {k: result[k] for k in ("total", "sorted", "skipped", "failed")},
+            "files_found": result["files_found"],
+            "folders_created": result["folders_created"],
+            "sorted": result["sorted"],
+            "skipped": result["skipped"],
+            "failed": result["failed"],
+            "timestamp": datetime.utcnow().isoformat(),
         }
     
-    except HTTPException:
-        raise
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"Sorting error: {error_details}")
         raise HTTPException(status_code=500, detail=f"Sorting failed: {str(e)}")
 
 
 @router.get("/status")
-async def get_drive_status(
-    db: AsyncIOMotorDatabase = Depends(get_database)
-):
-    """Get Google Drive integration status"""
-    try:
-        # Check authentication
-        creds_doc = await db.credentials.find_one({"type": "google_drive"})
-        authenticated = creds_doc is not None
-        
-        # Get sync status
-        sync_doc = await db.sync_status.find_one({"type": "drive_sync"})
-        last_sync = sync_doc.get('last_sync') if sync_doc else None
-        
-        # Get sorting status
-        sort_doc = await db.sync_status.find_one({"type": "file_sorting"})
-        last_sort = sort_doc.get('last_sort') if sort_doc else None
-        
-        return {
-            "authenticated": authenticated,
-            "last_sync": last_sync.isoformat() if last_sync else None,
-            "last_sort": last_sort.isoformat() if last_sort else None,
-            "sync_stats": sync_doc.get('stats') if sync_doc else None,
-            "sort_stats": sort_doc.get('stats') if sort_doc else None
-        }
-    
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get status: {str(e)}")
+async def get_drive_status():
+    """Get Google Drive integration status (OAuth connected or not)."""
+    creds = get_oauth_credentials()
+    return {"authenticated": creds is not None}
 
 
 @router.get("/files")
 async def list_drive_files(
     folder_id: Optional[str] = None,
     limit: int = 100,
-    db: AsyncIOMotorDatabase = Depends(get_database)
+    read_sample: Optional[str] = None
 ):
-    """List files from Google Drive"""
+    """List files from Google Drive (OAuth); optional read_sample=filename returns content preview."""
     try:
-        # Get credentials
-        creds_doc = await db.credentials.find_one({"type": "google_drive"})
-        if not creds_doc:
-            raise HTTPException(status_code=401, detail="Not authenticated with Google Drive")
-        
-        token_data = creds_doc.get('token_data')
-        credentials = GoogleAuthHandler.create_credentials_from_token(token_data)
-        
-        # Create Drive service
+        credentials = get_drive_credentials()
         drive_service = GoogleDriveService(credentials)
-        
-        # List files
         files = drive_service.list_files(folder_id=folder_id, page_size=limit)
-        
-        # Convert to dict
+
         file_list = []
         for file in files:
             file_list.append({
@@ -221,12 +159,18 @@ async def list_drive_files(
                 "modified_time": file.modified_time.isoformat() if file.modified_time else None,
                 "size": file.size
             })
-        
-        return {
-            "files": file_list,
-            "count": len(file_list)
-        }
-    
+
+        out = {"files": file_list, "count": len(file_list), "file_names": [f["name"] for f in file_list]}
+
+        if read_sample:
+            match = next((f for f in files if read_sample.lower() in f.name.lower()), None)
+            if match:
+                content = drive_service.get_file_content(match.id)
+                out["read_sample"] = {"file_name": match.name, "content_preview": (content or "")[:500]}
+            else:
+                out["read_sample"] = {"file_name": read_sample, "found": False}
+
+        return out
     except HTTPException:
         raise
     except Exception as e:

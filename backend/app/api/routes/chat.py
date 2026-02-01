@@ -3,20 +3,33 @@ from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import StreamingResponse
 from app.models.chat import ChatSession, CreateChatRequest, SendMessageRequest, ChatMessage
 from app.models.content import GeneratedContent
-from app.database.mongodb import get_database
 from app.services.gemini_client import GeminiClient
 from app.services.prompt_builder import PromptBuilder
 from app.services.context_retriever import ContextRetriever
 from app.services.google_drive import GoogleDriveService
 from app.utils.auth import GoogleAuthHandler
-from motor.motor_asyncio import AsyncIOMotorDatabase
-from bson import ObjectId
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Dict
 import json
-import traceback
+import os
+from uuid import uuid4
 
 router = APIRouter()
+
+# Local storage file for chat sessions
+LOCAL_STORAGE_FILE = "chat_storage.json"
+
+# Helper function to read from local storage
+def read_local_storage() -> Dict:
+    if not os.path.exists(LOCAL_STORAGE_FILE):
+        return {"chats": {}}
+    with open(LOCAL_STORAGE_FILE, "r") as file:
+        return json.load(file)
+
+# Helper function to write to local storage
+def write_local_storage(data: Dict):
+    with open(LOCAL_STORAGE_FILE, "w") as file:
+        json.dump(data, file, indent=2, default=str)
 
 
 async def get_drive_service() -> Optional[GoogleDriveService]:
@@ -32,23 +45,27 @@ async def get_gemini_client() -> GeminiClient:
 
 
 @router.post("/create", response_model=dict)
-async def create_chat(
-    request: CreateChatRequest,
-    db: AsyncIOMotorDatabase = Depends(get_database)
-):
+async def create_chat(request: CreateChatRequest):
     """Create a new chat session"""
     try:
+        chat_id = str(uuid4())
         chat_session = ChatSession(
             content_type=request.content_type,
             created_at=datetime.utcnow(),
             messages=[]
         )
         
-        # Insert into database
-        result = await db.chats.insert_one(chat_session.model_dump(by_alias=True, exclude={'id'}))
+        # Store in local storage
+        data = read_local_storage()
+        data["chats"][chat_id] = {
+            "content_type": chat_session.content_type,
+            "created_at": chat_session.created_at.isoformat(),
+            "messages": []
+        }
+        write_local_storage(data)
         
         return {
-            "chat_id": str(result.inserted_id),
+            "chat_id": chat_id,
             "content_type": chat_session.content_type,
             "created_at": chat_session.created_at.isoformat()
         }
@@ -58,24 +75,19 @@ async def create_chat(
 
 
 @router.get("/{chat_id}", response_model=dict)
-async def get_chat(
-    chat_id: str,
-    db: AsyncIOMotorDatabase = Depends(get_database)
-):
+async def get_chat(chat_id: str):
     """Get chat session by ID"""
     try:
-        if not ObjectId.is_valid(chat_id):
-            raise HTTPException(status_code=400, detail="Invalid chat ID")
-        
-        chat = await db.chats.find_one({"_id": ObjectId(chat_id)})
+        data = read_local_storage()
+        chat = data.get("chats", {}).get(chat_id)
         
         if not chat:
             raise HTTPException(status_code=404, detail="Chat not found")
         
-        # Convert ObjectId to string
-        chat['_id'] = str(chat['_id'])
-        
-        return chat
+        return {
+            "chat_id": chat_id,
+            **chat
+        }
     
     except HTTPException:
         raise
@@ -87,16 +99,13 @@ async def get_chat(
 async def send_message(
     chat_id: str,
     request: SendMessageRequest,
-    db: AsyncIOMotorDatabase = Depends(get_database),
     gemini_client: GeminiClient = Depends(get_gemini_client)
 ):
     """Send a message in a chat and get AI response"""
     try:
-        if not ObjectId.is_valid(chat_id):
-            raise HTTPException(status_code=400, detail="Invalid chat ID")
-        
         # Get chat session
-        chat = await db.chats.find_one({"_id": ObjectId(chat_id)})
+        data = read_local_storage()
+        chat = data.get("chats", {}).get(chat_id)
         if not chat:
             raise HTTPException(status_code=404, detail="Chat not found")
         
@@ -107,44 +116,28 @@ async def send_message(
             timestamp=datetime.utcnow()
         )
         
-        await db.chats.update_one(
-            {"_id": ObjectId(chat_id)},
-            {"$push": {"messages": user_message.model_dump()}}
-        )
+        chat["messages"].append({
+            "role": user_message.role,
+            "content": user_message.content,
+            "timestamp": user_message.timestamp.isoformat()
+        })
         
-        # Get context files from Google Drive
+        # Get context from Drive via OAuth (if connected)
         context_files = []
         try:
-            # Get Drive credentials from database (if user has authenticated)
-            creds_doc = await db.credentials.find_one({"type": "google_drive"})
-            
-            if creds_doc and creds_doc.get('token_data'):
-                # User has authenticated with Google Drive - retrieve context
-                # Create credentials and Drive service
-                token_data = creds_doc.get('token_data')
-                credentials = GoogleAuthHandler.create_credentials_from_token(token_data)
-                drive_service = GoogleDriveService(credentials)
-                
-                # Initialize context retriever
+            from app.api.routes.drive import get_oauth_credentials
+            creds = get_oauth_credentials()
+            if creds:
+                drive_service = GoogleDriveService(creds)
                 context_retriever = ContextRetriever(drive_service)
-                
-                # Get content type for targeted retrieval
                 content_type = chat.get('content_type', 'general')
-                
-                # Retrieve relevant files based on user query and content type
                 context_files = context_retriever.get_relevant_files(
                     content_type=content_type,
                     user_query=request.message,
-                    max_files=10  # Limit to top 10 most relevant files
+                    max_files=10
                 )
-                
-                print(f"Retrieved {len(context_files)} context files from Google Drive")
-            else:
-                print("No Google Drive credentials found - generating without context")
         except Exception as e:
-            print(f"Could not retrieve context files: {str(e)}")
-            print(f"Traceback: {traceback.format_exc()}")
-            # Continue without context - better to generate something than fail
+            print(f"Context from Drive: {e}")
         
         # Build prompt
         content_type = chat.get('content_type', 'general')
@@ -170,10 +163,15 @@ async def send_message(
             timestamp=datetime.utcnow()
         )
         
-        await db.chats.update_one(
-            {"_id": ObjectId(chat_id)},
-            {"$push": {"messages": assistant_message.model_dump()}}
-        )
+        chat["messages"].append({
+            "role": assistant_message.role,
+            "content": assistant_message.content,
+            "timestamp": assistant_message.timestamp.isoformat()
+        })
+        
+        # Save updated chat
+        data["chats"][chat_id] = chat
+        write_local_storage(data)
         
         return {
             "message": ai_response,
@@ -188,39 +186,43 @@ async def send_message(
 
 
 @router.get("/", response_model=list)
-async def list_chats(
-    limit: int = 20,
-    db: AsyncIOMotorDatabase = Depends(get_database)
-):
+async def list_chats(limit: int = 20):
     """List recent chat sessions"""
     try:
-        cursor = db.chats.find().sort("created_at", -1).limit(limit)
-        chats = await cursor.to_list(length=limit)
+        data = read_local_storage()
+        chats = data.get("chats", {})
         
-        # Convert ObjectId to string
-        for chat in chats:
-            chat['_id'] = str(chat['_id'])
+        # Convert to list and add chat_id
+        chat_list = []
+        for chat_id, chat_data in chats.items():
+            chat_list.append({
+                "chat_id": chat_id,
+                **chat_data
+            })
         
-        return chats
+        # Sort by created_at (most recent first)
+        chat_list.sort(key=lambda x: x.get('created_at', ''), reverse=True)
+        
+        # Limit results
+        return chat_list[:limit]
     
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to list chats: {str(e)}")
 
 
 @router.delete("/{chat_id}")
-async def delete_chat(
-    chat_id: str,
-    db: AsyncIOMotorDatabase = Depends(get_database)
-):
+async def delete_chat(chat_id: str):
     """Delete a chat session"""
     try:
-        if not ObjectId.is_valid(chat_id):
-            raise HTTPException(status_code=400, detail="Invalid chat ID")
+        data = read_local_storage()
+        chats = data.get("chats", {})
         
-        result = await db.chats.delete_one({"_id": ObjectId(chat_id)})
-        
-        if result.deleted_count == 0:
+        if chat_id not in chats:
             raise HTTPException(status_code=404, detail="Chat not found")
+        
+        del chats[chat_id]
+        data["chats"] = chats
+        write_local_storage(data)
         
         return {"message": "Chat deleted successfully"}
     
