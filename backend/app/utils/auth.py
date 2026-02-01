@@ -5,17 +5,14 @@ from google.auth.transport.requests import Request
 from app.config import settings
 from typing import Optional, Dict
 import json
+import os
 
 
 class GoogleAuthHandler:
     """Handle Google OAuth 2.0 authentication"""
     
-    # Scopes for Google Drive access
-    SCOPES = [
-        'https://www.googleapis.com/auth/drive.readonly',
-        'https://www.googleapis.com/auth/drive.file',
-        'https://www.googleapis.com/auth/drive.metadata.readonly'
-    ]
+    # Scopes for Google Drive (read + write for sort)
+    SCOPES = ['https://www.googleapis.com/auth/drive']
     
     @staticmethod
     def create_flow() -> Flow:
@@ -95,3 +92,4 @@ class GoogleAuthHandler:
             'client_secret': credentials.client_secret,
             'scopes': credentials.scopes
         }
+    
