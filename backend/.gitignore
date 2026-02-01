@@ -41,3 +41,6 @@ htmlcov/
 
 # Logs
 *.log
+
+drive_credentials.json
+drive_auth_state.json

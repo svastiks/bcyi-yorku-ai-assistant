@@ -1,20 +1,6 @@
 version: '3.8'
 
 services:
-  # MongoDB Database
-  mongodb:
-    image: mongo:7.0
-    container_name: bcyi-mongodb
-    restart: unless-stopped
-    ports:
-      - "27017:27017"
-    environment:
-      MONGO_INITDB_DATABASE: bcyi_assistant
-    volumes:
-      - mongodb_data:/data/db
-    networks:
-      - bcyi-network
-
   # Python Backend (FastAPI)
   backend:
     build:
@@ -25,14 +11,11 @@ services:
     ports:
       - "8000:8000"
     environment:
-      # MongoDB
-      - MONGODB_URI=mongodb://mongodb:27017
-      - DATABASE_NAME=bcyi_assistant
-      
-      # Google Drive (Add your credentials here or use .env file)
+      # Google Drive OAuth (root .env: GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, etc.)
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-}
-      - GOOGLE_REDIRECT_URI=${GOOGLE_REDIRECT_URI:-http://localhost:8000/auth/callback}
+      - GOOGLE_REDIRECT_URI=${GOOGLE_REDIRECT_URI:-http://localhost:8000/api/drive/auth/callback}
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
       
       # Gemini API
       - GEMINI_API_KEY=${GEMINI_API_KEY:-}
@@ -43,8 +26,6 @@ services:
       - CORS_ORIGINS=http://localhost:3000,http://frontend:3000
     volumes:
       - ./backend:/app
-    depends_on:
-      - mongodb
     networks:
       - bcyi-network
 
@@ -72,7 +53,3 @@ services:
 networks:
   bcyi-network:
     driver: bridge
-
-volumes:
-  mongodb_data:
-    driver: local
