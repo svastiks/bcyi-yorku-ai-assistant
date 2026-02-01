@@ -6,48 +6,56 @@ from datetime import datetime
 import re
 
 
-# Hardcoded sorting rules
+# Folder set: Blog Posts, Annual Reports, Documents, Summaries, Photos, Videos, Newsletters, Social Media, Spreadsheets, Unsorted
 SORTING_RULES = {
-    'newsletters': {
-        'patterns': ['newsletter_', 'monthly_update', 'newsletter-', 'monthly-update'],
-        'folder': 'Newsletters',
-        'keywords': ['newsletter', 'monthly update', 'community update']
-    },
     'blog_posts': {
         'patterns': ['blog_', 'article_', 'post_', 'blog-', 'article-', 'post-'],
         'folder': 'Blog Posts',
         'keywords': ['blog', 'article', 'post']
     },
-    'donor_emails': {
-        'patterns': ['donor_', 'thank_you_', 'donation_', 'donor-', 'thank-you-', 'donation-'],
-        'folder': 'Donor Emails',
-        'keywords': ['donor', 'thank you', 'donation', 'contribution']
+    'annual_reports': {
+        'patterns': ['annual_report', 'annual-report', 'annualreport', 'yearly_report'],
+        'folder': 'Annual Reports',
+        'keywords': ['annual report', 'year in review', 'yearly report']
+    },
+    'summaries': {
+        'patterns': ['summary_', 'summary-', 'summaries_', 'summaries-'],
+        'folder': 'Summaries',
+        'keywords': ['summary', 'summaries', 'executive summary', 'meeting summary']
+    },
+    'newsletters': {
+        'patterns': ['newsletter_', 'monthly_update', 'newsletter-', 'monthly-update'],
+        'folder': 'Newsletters',
+        'keywords': ['newsletter', 'monthly update', 'community update']
     },
     'social_media': {
-        'patterns': ['sm_', 'instagram_', 'twitter_', 'facebook_', 'linkedin_', 
-                    'sm-', 'instagram-', 'twitter-', 'facebook-', 'linkedin-',
-                    'social_', 'social-'],
+        'patterns': ['sm_', 'instagram_', 'twitter_', 'facebook_', 'linkedin_', 'social_', 'social-'],
         'folder': 'Social Media',
-        'keywords': ['instagram', 'twitter', 'facebook', 'social media', 'tweet', 'post']
+        'keywords': ['instagram', 'twitter', 'facebook', 'social media', 'tweet']
     },
-    'images': {
+    'photos': {
         'mime_types': ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'],
-        'folder': 'Media/Images'
+        'folder': 'Photos'
     },
     'videos': {
         'mime_types': ['video/mp4', 'video/quicktime', 'video/x-msvideo', 'video/webm'],
-        'folder': 'Media/Videos'
+        'folder': 'Videos'
     },
     'documents': {
-        'mime_types': ['application/vnd.google-apps.document', 
-                      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                      'application/msword'],
+        'mime_types': [
+            'application/vnd.google-apps.document',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'application/msword',
+            'application/pdf'
+        ],
         'folder': 'Documents'
     },
     'spreadsheets': {
-        'mime_types': ['application/vnd.google-apps.spreadsheet',
-                      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                      'application/vnd.ms-excel'],
+        'mime_types': [
+            'application/vnd.google-apps.spreadsheet',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'application/vnd.ms-excel'
+        ],
         'folder': 'Spreadsheets'
     }
 }
@@ -169,56 +177,45 @@ class FileSorter:
         self, 
         source_folder_id: Optional[str] = None,
         parent_for_organization: Optional[str] = None
-    ) -> Dict[str, int]:
-        """
-        Sort all files from a source folder
-        
-        Args:
-            source_folder_id: Optional folder ID to sort files from
-            parent_for_organization: Optional parent folder for organized structure
-            
-        Returns:
-            Dictionary with sorting statistics
-        """
-        print("Starting file sorting process...")
-        
-        # Create folder structure
-        print("Creating organized folder structure...")
+    ) -> Dict:
+        """Sort all files; returns stats plus files_found, folders_created, sorted, skipped, failed."""
         folder_map = self.create_folder_structure(parent_for_organization)
-        print(f"Created {len(folder_map)} folders")
-        
-        # List files to sort
-        print("Listing files...")
         files = self.drive_service.list_files(folder_id=source_folder_id)
-        print(f"Found {len(files)} files")
-        
-        # Sort files
-        stats = {
-            'total': len(files),
-            'sorted': 0,
-            'skipped': 0,
-            'failed': 0
-        }
-        
+
+        files_found = [{"name": f.name, "mime_type": f.mime_type} for f in files]
+        folders_created = list(folder_map.keys())
+        sorted_list: List[Dict] = []
+        skipped_list: List[Dict] = []
+        failed_list: List[Dict] = []
+
         for file in files:
-            # Skip folders
             if file.mime_type == 'application/vnd.google-apps.folder':
-                stats['skipped'] += 1
+                skipped_list.append({"name": file.name, "reason": "folder"})
                 continue
-            
-            # Sort file
-            if self.sort_file(file, folder_map):
-                stats['sorted'] += 1
+            target_folder = self.analyze_file(file)
+            if target_folder and target_folder in folder_map:
+                success = self.drive_service.move_file(file.id, folder_map[target_folder])
+                if success:
+                    sorted_list.append({"name": file.name, "target_folder": target_folder})
+                else:
+                    failed_list.append({"name": file.name})
             else:
-                stats['failed'] += 1
-        
-        print(f"\nSorting complete:")
-        print(f"  Total: {stats['total']}")
-        print(f"  Sorted: {stats['sorted']}")
-        print(f"  Skipped: {stats['skipped']}")
-        print(f"  Failed: {stats['failed']}")
-        
-        return stats
+                failed_list.append({"name": file.name, "reason": target_folder or "no rule"})
+
+        stats = {
+            "total": len(files),
+            "sorted": len(sorted_list),
+            "skipped": len(skipped_list),
+            "failed": len(failed_list),
+        }
+        return {
+            **stats,
+            "files_found": files_found,
+            "folders_created": folders_created,
+            "sorted": sorted_list,
+            "skipped": skipped_list,
+            "failed": failed_list,
+        }
     
     def get_sorting_rules(self) -> Dict:
         """Get current sorting rules for display"""

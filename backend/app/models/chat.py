@@ -2,24 +2,6 @@
 from pydantic import BaseModel, Field
 from typing import List, Optional
 from datetime import datetime
-from bson import ObjectId
-
-
-class PyObjectId(ObjectId):
-    """Custom ObjectId type for Pydantic"""
-    @classmethod
-    def __get_validators__(cls):
-        yield cls.validate
-
-    @classmethod
-    def validate(cls, v):
-        if not ObjectId.is_valid(v):
-            raise ValueError("Invalid ObjectId")
-        return ObjectId(v)
-
-    @classmethod
-    def __get_pydantic_json_schema__(cls, field_schema):
-        field_schema.update(type="string")
 
 
 class ChatMessage(BaseModel):
@@ -40,7 +22,7 @@ class ChatMessage(BaseModel):
 
 class ChatSession(BaseModel):
     """Chat session with multiple messages"""
-    id: Optional[str] = Field(None, alias="_id")
+    id: Optional[str] = Field(None)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     content_type: str = Field(..., description="Content type: newsletter, blog_post, donor_email, social_media, general")
     messages: List[ChatMessage] = Field(default_factory=list)

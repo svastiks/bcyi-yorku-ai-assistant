@@ -1,7 +1,6 @@
 """Context retrieval service for finding relevant files from Google Drive"""
 from app.services.google_drive import GoogleDriveService
 from app.models.file_metadata import DriveFile
-from app.database.mongodb import get_sync_database
 from typing import List, Dict, Optional, Tuple
 from datetime import datetime, timedelta
 import re
@@ -13,7 +12,6 @@ class ContextRetriever:
     def __init__(self, drive_service: GoogleDriveService):
         """Initialize with Google Drive service"""
         self.drive_service = drive_service
-        self.db = get_sync_database()
     
     def extract_keywords(self, text: str) -> List[str]:
         """
@@ -216,33 +214,13 @@ class ContextRetriever:
     
     def cache_file_metadata(self, files: List[DriveFile]):
         """
-        Cache file metadata in MongoDB for faster retrieval
+        Cache file metadata (currently disabled - no database)
         
         Args:
             files: List of DriveFile objects
         """
-        collection = self.db['file_metadata']
-        
-        for file in files:
-            # Get file content preview
-            content = self.drive_service.get_file_content(file.id)
-            preview = content[:500] if content else None
-            
-            # Upsert to database
-            collection.update_one(
-                {'drive_file_id': file.id},
-                {
-                    '$set': {
-                        'name': file.name,
-                        'mime_type': file.mime_type,
-                        'folder': file.folder_path,
-                        'created_at': file.created_time,
-                        'last_sorted': datetime.utcnow(),
-                        'content_preview': preview
-                    }
-                },
-                upsert=True
-            )
+        # Database removed - this is a no-op now
+        pass
     
     def get_recent_files(
         self,

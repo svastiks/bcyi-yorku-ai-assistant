@@ -35,14 +35,13 @@ class GoogleDriveService:
             List of DriveFile objects
         """
         try:
-            # Build query
-            query_parts = []
+            # Build query (exclude trashed)
+            query_parts = ["trashed=false"]
             if folder_id:
                 query_parts.append(f"'{folder_id}' in parents")
             if query:
                 query_parts.append(query)
-            
-            query_string = " and ".join(query_parts) if query_parts else None
+            query_string = " and ".join(query_parts)
             
             # List files
             results = self.service.files().list(
