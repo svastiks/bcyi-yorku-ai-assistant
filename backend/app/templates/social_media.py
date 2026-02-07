@@ -181,5 +181,19 @@ STORY 5:
 [Background: Group photo]
 Text: "Thank you to everyone who came out!"
 Hashtags: #BCYI #CommunityStrong
+
+---
+
+=== TIKTOK POST ===
+
+PLATFORM RULES (TikTok):
+- Strong hook in first 1–2 lines
+- Conversational but intentional
+- Emojis allowed if purposeful
+- Line breaks encouraged
+- Length: 80–150 words
+- End with an engagement prompt (question or CTA)
+
+---
 """
 }
