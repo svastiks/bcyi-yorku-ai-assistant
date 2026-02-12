@@ -33,12 +33,12 @@ export async function POST(request: NextRequest) {
       });
     } catch (backendError) {
       console.error('[API] Backend error, falling back to demo:', backendError);
-      
-      // Fallback to demo response if backend is unavailable
+
+      // Fallback to demo response if backend is unavailable — make it obvious it's not the real AI
       const demoResponse = getDemoResponse(contentType);
-      
+
       return NextResponse.json({
-        message: demoResponse,
+        message: `**[Demo mode — backend unavailable]**\n\nYour message was not sent to the AI. Start the backend (e.g. \`docker-compose up\` or run the FastAPI server on port 8000) and try again for real, request-specific responses.\n\n---\n\nSample output for this content type:\n\n${demoResponse}`,
         contentType,
         chatId: chatId || `demo-${Date.now()}`,
         contextFilesUsed: 0,
