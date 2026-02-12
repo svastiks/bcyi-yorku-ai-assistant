@@ -143,16 +143,21 @@ async def send_message(
         content_type = chat.get('content_type', 'general')
         chat_history = chat.get('messages', [])
         
+        # Log so you can verify backend is used and user message is in the prompt
+        print(f"[Chat] chat_id={chat_id} content_type={content_type} user_message={request.message[:80]!r}...")
+        
         prompt = PromptBuilder.build_prompt(
             content_type=content_type,
             user_input=request.message,
             context_files=context_files,
             chat_history=chat_history
         )
+        print(f"[Chat] prompt length={len(prompt)} chars, calling Gemini...")
         
         # Generate response
         try:
             ai_response = gemini_client.generate_with_retry(prompt)
+            print(f"[Chat] response length={len(ai_response)} chars")
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"AI generation failed: {str(e)}")
         
