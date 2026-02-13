@@ -3,6 +3,7 @@
 services:
   - type: web
     name: bcyi-backend
+    plan: free
     runtime: python
     rootDir: backend
     buildCommand: pip install -r requirements.txt
