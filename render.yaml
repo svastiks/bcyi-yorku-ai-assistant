@@ -1,0 +1,22 @@
+# Render: backend only (frontend on Vercel).
+# In Render dashboard set: GEMINI_API_KEY, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, FRONTEND_URL (your Vercel URL), CORS_ORIGINS (same as FRONTEND_URL).
+services:
+  - type: web
+    name: bcyi-backend
+    runtime: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: |
+      export GOOGLE_REDIRECT_URI=${RENDER_EXTERNAL_URL}/api/drive/auth/callback
+      uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
