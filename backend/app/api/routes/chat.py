@@ -127,7 +127,9 @@ async def send_message(
         try:
             from app.api.routes.drive import get_oauth_credentials
             creds = get_oauth_credentials()
-            if creds:
+            if not creds:
+                print("Chat context: Drive not connected (no OAuth credentials)")
+            else:
                 drive_service = GoogleDriveService(creds)
                 context_retriever = ContextRetriever(drive_service)
                 content_type = chat.get('content_type', 'general')
@@ -136,6 +138,8 @@ async def send_message(
                     user_query=request.message,
                     max_files=10
                 )
+                if not context_files and ("use " in request.message.lower() or "from drive" in request.message.lower() or "print " in request.message.lower()):
+                    print(f"Chat context: no files found for query (name search + keyword over root/subfolders)")
         except Exception as e:
             print(f"Context from Drive: {e}")
         

@@ -21,24 +21,22 @@ class GoogleDriveService:
         self, 
         folder_id: Optional[str] = None,
         query: Optional[str] = None,
+        name_contains: Optional[str] = None,
         page_size: int = 100
     ) -> List[DriveFile]:
         """
-        List files from Google Drive
-        
-        Args:
-            folder_id: Optional folder ID to list files from
-            query: Optional query string for filtering
-            page_size: Number of files to retrieve per page
-            
-        Returns:
-            List of DriveFile objects
+        List files from Google Drive.
+        Use name_contains to find files by name (searches entire Drive).
         """
         try:
-            # Build query (exclude trashed)
             query_parts = ["trashed=false"]
-            if folder_id:
-                query_parts.append(f"'{folder_id}' in parents")
+            if folder_id is not None:
+                parent = "root" if folder_id == "root" else folder_id
+                query_parts.append(f"'{parent}' in parents")
+            if name_contains:
+                # Drive API: single quote in value escaped by doubling
+                safe = name_contains.replace("'", "''")
+                query_parts.append(f"name contains '{safe}'")
             if query:
                 query_parts.append(query)
             query_string = " and ".join(query_parts)
@@ -70,7 +68,25 @@ class GoogleDriveService:
         except Exception as e:
             print(f"Error listing files: {str(e)}")
             return []
-    
+
+    def list_files_by_name(self, name_substring: str, page_size: int = 20) -> List[DriveFile]:
+        """List files whose name contains the given substring (searches entire Drive)."""
+        return self.list_files(name_contains=name_substring, page_size=page_size)
+
+    def list_root_and_subfolder_files(self, page_size: int = 200) -> List[DriveFile]:
+        """List files at root and in all immediate subfolders (one level)."""
+        root_files = self.list_files(folder_id="root", page_size=page_size)
+        seen = {f.id for f in root_files}
+        out = list(root_files)
+        for f in root_files:
+            if f.mime_type == "application/vnd.google-apps.folder":
+                children = self.list_files(folder_id=f.id, page_size=100)
+                for c in children:
+                    if c.id not in seen and c.mime_type != "application/vnd.google-apps.folder":
+                        seen.add(c.id)
+                        out.append(c)
+        return out
+
     def get_file_content(self, file_id: str) -> Optional[str]:
         """
         Get text content of a file

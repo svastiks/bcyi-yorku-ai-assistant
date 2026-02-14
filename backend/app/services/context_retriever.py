@@ -88,128 +88,103 @@ class ContextRetriever:
         
         return min(score, 100)  # Cap at 100
     
+    def _filename_like_tokens(self, text: str) -> List[str]:
+        """Extract tokens that look like filenames (underscore, or quoted)."""
+        tokens = []
+        words = text.strip().split()
+        for w in words:
+            w = w.strip('.,!?;:"\'')
+            if "_" in w and len(w) > 2:
+                tokens.append(w.lower())
+            if w.startswith('"') and w.endswith('"') and len(w) > 2:
+                tokens.append(w[1:-1].lower())
+        return list(dict.fromkeys(tokens))
+
     def search_files_by_keywords(
         self,
         keywords: List[str],
         folder_name: Optional[str] = None,
+        files: Optional[List[DriveFile]] = None,
         max_results: int = 10
     ) -> List[Tuple[DriveFile, float]]:
-        """
-        Search for files matching keywords
-        
-        Args:
-            keywords: List of search keywords
-            folder_name: Optional folder to search in
-            max_results: Maximum number of results
-            
-        Returns:
-            List of (DriveFile, score) tuples
-        """
-        # Get folder ID if folder name provided
-        folder_id = None
-        if folder_name:
-            folder_id = self.drive_service.find_folder_by_name(folder_name)
-        
-        # List files
-        files = self.drive_service.list_files(folder_id=folder_id)
-        
-        # Score and filter files
+        """Search for files matching keywords. Pass files= to search a pre-fetched list."""
+        if files is None:
+            folder_id = self.drive_service.find_folder_by_name(folder_name) if folder_name else None
+            files = self.drive_service.list_files(folder_id=folder_id)
         scored_files = []
         for file in files:
-            # Skip folders
-            if file.mime_type == 'application/vnd.google-apps.folder':
+            if file.mime_type == "application/vnd.google-apps.folder":
                 continue
-            
             score = self.score_file_relevance(file, keywords, folder_name)
-            
-            # Only include files with score > 0
             if score > 0:
                 scored_files.append((file, score))
-        
-        # Sort by score (descending) and limit results
         scored_files.sort(key=lambda x: x[1], reverse=True)
         return scored_files[:max_results]
-    
+
     def get_relevant_files(
         self,
         content_type: str,
         user_query: str,
         max_files: int = 10
     ) -> List[Dict]:
-        """
-        Get relevant files based on content type and user query
-        
-        Args:
-            content_type: Type of content being generated
-            user_query: User's query/request
-            max_files: Maximum number of files to return
-            
-        Returns:
-            List of file dictionaries with content
-        """
-        # Extract keywords from query
+        """Get relevant files: explicit filename match first, then keyword search over root + subfolders."""
         keywords = self.extract_keywords(user_query)
-        
-        # Add content-type specific keywords
         type_keywords = {
             'newsletter': ['newsletter', 'monthly', 'update', 'community'],
             'blog_post': ['blog', 'post', 'article', 'story'],
             'donor_email': ['donor', 'thank', 'donation', 'contribution'],
             'social_media': ['social', 'instagram', 'twitter', 'facebook', 'post'],
         }
-        
         if content_type in type_keywords:
             keywords.extend(type_keywords[content_type])
-        
-        # Map content type to folder
-        folder_map = {
-            'newsletter': 'Newsletters',
-            'blog_post': 'Blog Posts',
-            'donor_email': 'Donor Emails',
-            'social_media': 'Social Media',
-        }
-        
-        target_folder = folder_map.get(content_type)
-        
-        # Search for relevant files
-        scored_files = self.search_files_by_keywords(
-            keywords=keywords,
-            folder_name=target_folder,
-            max_results=max_files
-        )
-        
-        # Also search in general folders
-        general_folders = ['Impact Stories', 'Events', 'Programs']
-        for folder in general_folders:
-            additional_files = self.search_files_by_keywords(
-                keywords=keywords,
-                folder_name=folder,
-                max_results=max(3, max_files // 3)
-            )
-            scored_files.extend(additional_files)
-        
-        # Re-sort and limit
-        scored_files.sort(key=lambda x: x[1], reverse=True)
-        scored_files = scored_files[:max_files]
-        
-        # Retrieve file contents
+
         relevant_files = []
-        for file, score in scored_files:
+        seen_ids = set()
+
+        # 1) Explicit filename match: user said "use test_event_summary" etc.
+        for token in self._filename_like_tokens(user_query):
+            by_name = self.drive_service.list_files_by_name(token)
+            if not by_name and "_" in token:
+                by_name = self.drive_service.list_files_by_name(token.replace("_", " "))
+            for file in by_name:
+                if file.id in seen_ids or file.mime_type == "application/vnd.google-apps.folder":
+                    continue
+                seen_ids.add(file.id)
+                content = self.drive_service.get_file_content(file.id)
+                if content:
+                    if len(content) > 5000:
+                        content = content[:5000] + "\n...(truncated)"
+                    relevant_files.append({
+                        'name': file.name,
+                        'folder': file.folder_path or 'Drive',
+                        'content': content,
+                        'relevance_score': 100.0,
+                        'modified_time': file.modified_time.isoformat() if file.modified_time else None
+                    })
+                    if len(relevant_files) >= max_files:
+                        return relevant_files
+
+        # 2) Keyword search over root + all immediate subfolders
+        all_files = self.drive_service.list_root_and_subfolder_files()
+        scored = self.search_files_by_keywords(keywords=keywords, files=all_files, max_results=max_files)
+        for file, score in scored:
+            if file.id in seen_ids:
+                continue
+            seen_ids.add(file.id)
             content = self.drive_service.get_file_content(file.id)
             if content:
-                # Limit content length to avoid token overflow
-                max_content_length = 5000  # ~1250 tokens
-                if len(content) > max_content_length:
-                    content = content[:max_content_length] + "\n...(content truncated)"
-                
+                if len(content) > 5000:
+                    content = content[:5000] + "\n...(truncated)"
                 relevant_files.append({
                     'name': file.name,
-                    'folder': file.folder_path or target_folder or 'Unknown',
+                    'folder': file.folder_path or 'Drive',
                     'content': content,
                     'relevance_score': score,
                     'modified_time': file.modified_time.isoformat() if file.modified_time else None
                 })
-        
+            if len(relevant_files) >= max_files:
+                break
+
         return relevant_files
     
     def cache_file_metadata(self, files: List[DriveFile]):

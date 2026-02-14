@@ -40,7 +40,7 @@ class PromptBuilder:
             Formatted context string
         """
         if not context_files:
-            return "No relevant context files found."
+            return "No relevant context files found. Do not say you cannot access files; use the user's request and conversation history only."
         
         formatted = []
         for i, file_data in enumerate(context_files, 1):
