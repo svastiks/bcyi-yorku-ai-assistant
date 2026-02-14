@@ -22,11 +22,12 @@ class GoogleDriveService:
         folder_id: Optional[str] = None,
         query: Optional[str] = None,
         name_contains: Optional[str] = None,
+        full_text_contains: Optional[str] = None,
         page_size: int = 100
     ) -> List[DriveFile]:
         """
         List files from Google Drive.
-        Use name_contains to find files by name (searches entire Drive).
+        Use name_contains to find by name; full_text_contains to search inside file content (indexed types).
         """
         try:
             query_parts = ["trashed=false"]
@@ -34,9 +35,11 @@ class GoogleDriveService:
                 parent = "root" if folder_id == "root" else folder_id
                 query_parts.append(f"'{parent}' in parents")
             if name_contains:
-                # Drive API: single quote in value escaped by doubling
                 safe = name_contains.replace("'", "''")
                 query_parts.append(f"name contains '{safe}'")
+            if full_text_contains:
+                safe = full_text_contains.replace("'", "''")
+                query_parts.append(f"fullText contains '{safe}'")
             if query:
                 query_parts.append(query)
             query_string = " and ".join(query_parts)
@@ -72,6 +75,12 @@ class GoogleDriveService:
     def list_files_by_name(self, name_substring: str, page_size: int = 20) -> List[DriveFile]:
         """List files whose name contains the given substring (searches entire Drive)."""
         return self.list_files(name_contains=name_substring, page_size=page_size)
+
+    def list_files_by_content(self, text: str, page_size: int = 20) -> List[DriveFile]:
+        """List files whose content contains the given text (fullText search; indexed types only)."""
+        if not text or len(text.strip()) < 2:
+            return []
+        return self.list_files(full_text_contains=text.strip(), page_size=page_size)
 
     def list_root_and_subfolder_files(self, page_size: int = 200) -> List[DriveFile]:
         """List files at root and in all immediate subfolders (one level)."""

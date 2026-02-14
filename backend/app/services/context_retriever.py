@@ -100,6 +100,21 @@ class ContextRetriever:
                 tokens.append(w[1:-1].lower())
         return list(dict.fromkeys(tokens))
 
+    def _content_search_terms(self, user_query: str, keywords: List[str], max_terms: int = 5) -> List[str]:
+        """Terms to run fullText search on: time-like (2pm, 5pm), numbers, and longer keywords."""
+        terms = []
+        words = re.findall(r"[a-zA-Z0-9]+(?:\s*[-–]\s*[a-zA-Z0-9]+)?|[a-zA-Z0-9]+", user_query)
+        for w in words:
+            w = w.strip().lower()
+            if len(w) < 2:
+                continue
+            if re.search(r"\d", w):
+                terms.append(w)
+        for k in sorted(keywords, key=len, reverse=True):
+            if k not in terms and len(k) > 2:
+                terms.append(k)
+        return list(dict.fromkeys(terms))[:max_terms]
+
     def search_files_by_keywords(
         self,
         keywords: List[str],
@@ -127,7 +142,7 @@ class ContextRetriever:
         user_query: str,
         max_files: int = 10
     ) -> List[Dict]:
-        """Get relevant files: explicit filename match first, then keyword search over root + subfolders."""
+        """Get relevant files: filename match, then fullText content search, then keyword-by-name over root + subfolders."""
         keywords = self.extract_keywords(user_query)
         type_keywords = {
             'newsletter': ['newsletter', 'monthly', 'update', 'community'],
@@ -164,7 +179,33 @@ class ContextRetriever:
                     if len(relevant_files) >= max_files:
                         return relevant_files
 
-        # 2) Keyword search over root + all immediate subfolders
+        # 2) Content search: fullText for terms like "2pm", "5pm", "summary", "time"
+        for term in self._content_search_terms(user_query, keywords, max_terms=5):
+            if len(relevant_files) >= max_files:
+                break
+            try:
+                by_content = self.drive_service.list_files_by_content(term, page_size=10)
+                for file in by_content:
+                    if file.id in seen_ids or file.mime_type == "application/vnd.google-apps.folder":
+                        continue
+                    seen_ids.add(file.id)
+                    content = self.drive_service.get_file_content(file.id)
+                    if content:
+                        if len(content) > 5000:
+                            content = content[:5000] + "\n...(truncated)"
+                        relevant_files.append({
+                            'name': file.name,
+                            'folder': file.folder_path or 'Drive',
+                            'content': content,
+                            'relevance_score': 85.0,
+                            'modified_time': file.modified_time.isoformat() if file.modified_time else None
+                        })
+                        if len(relevant_files) >= max_files:
+                            break
+            except Exception:
+                continue
+
+        # 3) Keyword search over root + all immediate subfolders (by name)
         all_files = self.drive_service.list_root_and_subfolder_files()
         scored = self.search_files_by_keywords(keywords=keywords, files=all_files, max_results=max_files)
         for file, score in scored:
