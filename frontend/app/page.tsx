@@ -3,6 +3,7 @@
 import React from "react"
 
 import { useState, useRef, useEffect } from 'react'
+import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Card } from '@/components/ui/card'
@@ -10,6 +11,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { SendHorizontal, Sparkles, Menu, Plus, FolderInput } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import { cn } from '@/lib/utils'
+import { ThemeToggle } from '@/components/theme-toggle'
 
 type Message = {
   id: string
@@ -31,11 +33,11 @@ type ChatSession = {
 type ContentType = 'newsletter' | 'blog-post' | 'donor-email' | 'social-media' | 'general'
 
 const contentTypes = [
-  { value: 'newsletter', label: 'Newsletter', icon: '📧' },
-  { value: 'blog-post', label: 'Blog Post', icon: '✍️' },
-  { value: 'donor-email', label: 'Donor Email', icon: '💝' },
-  { value: 'social-media', label: 'Social Media', icon: '📱' },
-  { value: 'general', label: 'General', icon: '💬' },
+  { value: 'newsletter', label: 'Newsletter' },
+  { value: 'blog-post', label: 'Blog Post' },
+  { value: 'donor-email', label: 'Donor Email' },
+  { value: 'social-media', label: 'Social Media' },
+  { value: 'general', label: 'General' },
 ]
 
 const CHAT_STORAGE_KEY = 'bcyi_chats'
@@ -90,6 +92,21 @@ export default function ChatPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const retryOnLoadRef = useRef(false)
+
+  const getContentTypeIconSrc = (value: ContentType) => {
+    switch (value) {
+      case 'newsletter':
+        return '/icons/newsletter.png'
+      case 'blog-post':
+        return '/icons/blog-post.png'
+      case 'donor-email':
+        return '/icons/donor-email.png'
+      case 'social-media':
+        return '/icons/social-media.png'
+      default:
+        return '/icons/general.png'
+    }
+  }
 
   const currentSession = chatSessions.find(s => s.id === currentSessionId)
 
@@ -420,13 +437,22 @@ export default function ChatPage() {
                   key={type.value}
                   onClick={() => setSelectedType(type.value as ContentType)}
                   className={cn(
-                    'w-full text-left px-3 py-2 rounded-lg text-sm transition-colors',
+                    'w-full text-left px-3 py-2 rounded-lg text-sm transition-colors flex items-center gap-2',
                     selectedType === type.value
                       ? 'bg-secondary text-secondary-foreground'
                       : 'hover:bg-accent text-foreground'
                   )}
                 >
-                  <span className="mr-2">{type.icon}</span>
+                  {type.value !== 'general' && (
+                    <span className="inline-flex h-5 w-5 items-center justify-center rounded-md bg-background/40">
+                      <Image
+                        src={getContentTypeIconSrc(type.value as ContentType)}
+                        alt={type.label}
+                        width={16}
+                        height={16}
+                      />
+                    </span>
+                  )}
                   {type.label}
                 </button>
               ))}
@@ -450,22 +476,55 @@ export default function ChatPage() {
       {/* Main Chat Area */}
       <main className="flex-1 flex flex-col">
         {/* Header */}
-        <header className="border-b border-border bg-card p-4">
-          <div className="flex items-center justify-between max-w-4xl mx-auto">
-            <div className="flex items-center gap-3">
+        <header className="border-b border-border bg-card/90 backdrop-blur-sm px-6 py-3">
+          <div className="flex items-center justify-between max-w-6xl mx-auto">
+            <div className="flex items-center gap-4">
               <Button variant="ghost" size="icon" className="lg:hidden">
                 <Menu className="w-5 h-5" />
               </Button>
+
+              <div className="hidden md:flex items-center gap-3">
+                <Image
+                  src="/icons/aorta-heart.png"
+                  alt="Aorta"
+                  width={32}
+                  height={32}
+                  className="rounded-full shadow-sm"
+                />
+                <div className="flex flex-col">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg font-semibold tracking-tight text-foreground">
+                      Aorta
+                    </span>
+                    <span className="h-5 w-px bg-border" />
+                    <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      BCYI x YorkU AI Assistant
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Create newsletters, blog posts, donor emails and social content.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
               {driveConnected ? (
-                <Button variant="outline" size="sm" onClick={disconnectDrive} className="shrink-0">
+                <Button variant="outline" size="sm" onClick={disconnectDrive} className="hidden sm:inline-flex">
                   Disconnect Drive
                 </Button>
               ) : (
-                <Button variant="outline" size="sm" onClick={connectDrive} className="shrink-0">
+                <Button variant="outline" size="sm" onClick={connectDrive} className="hidden sm:inline-flex">
                   Connect Google Drive
                 </Button>
               )}
-              <Button variant="outline" size="sm" onClick={listDriveFiles} disabled={listing} className="shrink-0">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={listDriveFiles}
+                disabled={listing}
+                className="hidden md:inline-flex"
+              >
                 {listing ? 'Listing…' : 'List files'}
               </Button>
               <Button
@@ -473,20 +532,12 @@ export default function ChatPage() {
                 size="sm"
                 onClick={sortDrive}
                 disabled={sorting}
-                className="shrink-0"
+                className="hidden md:inline-flex"
               >
                 <FolderInput className="w-4 h-4 mr-2" />
                 {sorting ? 'Sorting…' : 'Sort Drive'}
               </Button>
-              <div>
-                <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
-                  <Sparkles className="w-5 h-5 text-primary" />
-                  BCYI x YorkU AI Assistant
-                </h1>
-                <p className="text-sm text-muted-foreground">
-                  Creating content for youth empowerment
-                </p>
-              </div>
+              <ThemeToggle />
             </div>
           </div>
         </header>
@@ -496,8 +547,13 @@ export default function ChatPage() {
           <div className="max-w-4xl mx-auto p-4 space-y-6">
             {messages.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full min-h-[400px] text-center">
-                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary via-secondary to-accent flex items-center justify-center mb-6">
-                  <Sparkles className="w-8 h-8 text-white" />
+                <div className="w-16 h-16 rounded-2xl bg-card border border-border flex items-center justify-center mb-6 shadow-md">
+                  <Image
+                    src="/icons/aorta-heart-center.png"
+                    alt="Aorta heart"
+                    width={40}
+                    height={40}
+                  />
                 </div>
                 <h2 className="text-3xl font-bold text-foreground mb-4 text-balance">
                   Welcome to BCYI x YorkU AI Assistant
@@ -510,13 +566,20 @@ export default function ChatPage() {
                   {contentTypes.slice(0, 4).map((type) => (
                     <Card
                       key={type.value}
-                      className="p-4 hover:shadow-lg transition-shadow cursor-pointer border-2 hover:border-primary"
+                      className="p-4 hover:shadow-lg transition-shadow cursor-pointer border border-border hover:border-primary bg-card/90"
                       onClick={() => {
                         setSelectedType(type.value as ContentType)
                         textareaRef.current?.focus()
                       }}
                     >
-                      <div className="text-3xl mb-2">{type.icon}</div>
+                      <div className="mb-3 flex items-center justify-center">
+                        <Image
+                          src={getContentTypeIconSrc(type.value as ContentType)}
+                          alt={type.label}
+                          width={32}
+                          height={32}
+                        />
+                      </div>
                       <h3 className="font-semibold text-foreground">{type.label}</h3>
                       <p className="text-sm text-muted-foreground mt-1">
                         {type.value === 'newsletter' && 'Create engaging monthly updates'}
