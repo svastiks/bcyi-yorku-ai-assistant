@@ -131,13 +131,31 @@ async def send_message(
                 print("Chat context: Drive not connected (no OAuth credentials)")
             else:
                 drive_service = GoogleDriveService(creds)
+                # Priority context: user-selected event summary file (e.g. from prompt builder)
+                if getattr(request, "context_file_id", None):
+                    content = drive_service.get_file_content(request.context_file_id)
+                    if content:
+                        if len(content) > 8000:
+                            content = content[:8000] + "\n...(truncated)"
+                        context_files.append({
+                            "name": "Selected event summary",
+                            "folder": "Drive",
+                            "content": content,
+                            "relevance_score": 100.0,
+                            "modified_time": None,
+                        })
                 context_retriever = ContextRetriever(drive_service)
                 content_type = chat.get('content_type', 'general')
-                context_files = context_retriever.get_relevant_files(
+                retrieved = context_retriever.get_relevant_files(
                     content_type=content_type,
                     user_query=request.message,
                     max_files=10
                 )
+                seen_names = {c.get("name") for c in context_files}
+                for c in retrieved:
+                    if c.get("name") not in seen_names:
+                        context_files.append(c)
+                        seen_names.add(c.get("name"))
                 if not context_files and ("use " in request.message.lower() or "from drive" in request.message.lower() or "print " in request.message.lower()):
                     print(f"Chat context: no files found for query (name search + keyword over root/subfolders)")
         except Exception as e:

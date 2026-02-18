@@ -58,10 +58,12 @@ class CreateChatRequest(BaseModel):
 class SendMessageRequest(BaseModel):
     """Request to send a message in a chat"""
     message: str = Field(..., description="User message")
+    context_file_id: Optional[str] = Field(None, description="Optional Drive file ID to include as priority context (e.g. selected event summary)")
     
     class Config:
         json_schema_extra = {
             "example": {
-                "message": "Create a newsletter about our recent basketball tournament"
+                "message": "Create a newsletter about our recent basketball tournament",
+                "context_file_id": "1abc123"
             }
         }
