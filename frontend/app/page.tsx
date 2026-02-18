@@ -12,6 +12,7 @@ import { SendHorizontal, Sparkles, Menu, Plus, FolderInput } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import { cn } from '@/lib/utils'
 import { ThemeToggle } from '@/components/theme-toggle'
+import { PromptVariablesModal } from '@/components/prompt-variables-modal'
 
 type Message = {
   id: string
@@ -31,6 +32,8 @@ type ChatSession = {
 }
 
 type ContentType = 'newsletter' | 'blog-post' | 'donor-email' | 'social-media' | 'general'
+
+type SummaryItem = { id: string; name: string }
 
 const contentTypes = [
   { value: 'newsletter', label: 'Newsletter' },
@@ -89,6 +92,10 @@ export default function ChatPage() {
   const [driveConnected, setDriveConnected] = useState<boolean | null>(null)
   const [selectedType, setSelectedType] = useState<ContentType>('general')
   const [hydrated, setHydrated] = useState(false)
+  const [summaries, setSummaries] = useState<SummaryItem[]>([])
+  const [selectedSummary, setSelectedSummary] = useState<SummaryItem | null>(null)
+  const [promptModalOpen, setPromptModalOpen] = useState(false)
+  const [loadingSummaries, setLoadingSummaries] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const retryOnLoadRef = useRef(false)
@@ -110,11 +117,11 @@ export default function ChatPage() {
 
   const currentSession = chatSessions.find(s => s.id === currentSessionId)
 
-  const sendMessageToApi = async (messageContent: string, contentType: ContentType, backendChatId: string | null, history: Message[]) => {
+  const sendMessageToApi = async (messageContent: string, contentType: ContentType, backendChatId: string | null, history: Message[], summaryFileId?: string) => {
     const res = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: messageContent, contentType, history, chatId: backendChatId }),
+      body: JSON.stringify({ message: messageContent, contentType, history, chatId: backendChatId, summaryFileId }),
     })
     if (!res.ok) throw new Error('Failed to fetch response')
     const data = await res.json()
@@ -172,6 +179,19 @@ export default function ChatPage() {
   useEffect(() => {
     fetch('/api/drive/auth/status').then(r => r.json()).then(d => setDriveConnected(d.connected)).catch(() => setDriveConnected(false))
   }, [])
+
+  useEffect(() => {
+    if (!driveConnected) {
+      setSummaries([])
+      return
+    }
+    setLoadingSummaries(true)
+    fetch('/api/drive/summaries')
+      .then((r) => r.ok ? r.json() : { summaries: [] })
+      .then((d) => setSummaries(d.summaries || []))
+      .catch(() => setSummaries([]))
+      .finally(() => setLoadingSummaries(false))
+  }, [driveConnected])
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     if (params.get('drive_connected') === '1') {
@@ -271,9 +291,10 @@ export default function ChatPage() {
     setMessages((prev) => [...prev, userMessage])
     setInput('')
     setIsLoading(true)
+    const fileIdToSend = selectedSummary?.id
 
     try {
-      await sendMessageToApi(input, selectedType, currentSession?.backendChatId ?? null, messages)
+      await sendMessageToApi(input, selectedType, currentSession?.backendChatId ?? null, messages, fileIdToSend)
     } catch (error) {
       console.error('[bcyi-ai-assistant] Chat error:', error)
       setMessages((prev) => [...prev, {
@@ -284,6 +305,7 @@ export default function ChatPage() {
       }])
     } finally {
       setIsLoading(false)
+      setSelectedSummary(null)
     }
   }
 
@@ -666,7 +688,40 @@ export default function ChatPage() {
 
         {/* Input Area */}
         <div className="border-t border-border bg-card p-4">
-          <div className="max-w-4xl mx-auto">
+          <div className="max-w-4xl mx-auto space-y-3">
+            {driveConnected && (
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-muted-foreground">Latest events (select to build prompt)</p>
+                <div className="flex flex-wrap gap-2">
+                  {loadingSummaries ? (
+                    <span className="text-sm text-muted-foreground">Loading summaries…</span>
+                  ) : summaries.length === 0 ? (
+                    <span className="text-sm text-muted-foreground">No event summaries found.</span>
+                  ) : (
+                    summaries.map((s) => (
+                      <button
+                        key={s.id}
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          setSelectedSummary(s)
+                          setTimeout(() => setPromptModalOpen(true), 10)
+                        }}
+                        className={cn(
+                          'rounded-full px-3 py-1.5 text-sm border transition-colors',
+                          selectedSummary?.id === s.id
+                            ? 'bg-primary text-primary-foreground border-primary'
+                            : 'bg-muted/50 border-border hover:bg-muted text-foreground'
+                        )}
+                      >
+                        {s.name}
+                      </button>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
             <form onSubmit={handleSubmit} className="relative">
               <div className="flex items-end gap-2">
                 <div className="flex-1 relative">
@@ -702,6 +757,17 @@ export default function ChatPage() {
             </p>
           </div>
         </div>
+
+        <PromptVariablesModal
+          open={promptModalOpen}
+          onClose={() => setPromptModalOpen(false)}
+          selectedSummary={selectedSummary}
+          contentType={selectedType}
+          onGeneratePrompt={(promptText) => {
+            setInput(promptText)
+            textareaRef.current?.focus()
+          }}
+        />
       </main>
     </div>
   )
