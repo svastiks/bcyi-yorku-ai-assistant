@@ -7,7 +7,7 @@ const backendAPI = new BackendAPIClient();
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { message, contentType, history, chatId } = body
+    const { message, contentType, history, chatId, summaryFileId } = body
 
     // Convert frontend content type (kebab-case) to backend format (snake_case)
     const backendContentType = toBackendContentType(contentType);
@@ -22,8 +22,10 @@ export async function POST(request: NextRequest) {
         sessionChatId = createResponse.chat_id;
       }
 
-      // Send message to backend
-      const response = await backendAPI.sendMessage(sessionChatId, message);
+      // Send message to backend (optional: priority context from selected event summary)
+      const response = await backendAPI.sendMessage(sessionChatId, message, {
+        context_file_id: summaryFileId || undefined,
+      });
 
       return NextResponse.json({
         message: response.message,

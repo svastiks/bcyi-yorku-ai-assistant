@@ -33,15 +33,17 @@ export class BackendAPIClient {
   /**
    * Send a message in a chat
    */
-  async sendMessage(chatId: string, message: string): Promise<{
+  async sendMessage(chatId: string, message: string, opts?: { context_file_id?: string }): Promise<{
     message: string;
     context_files_used: number;
     timestamp: string;
   }> {
+    const body: { message: string; context_file_id?: string } = { message };
+    if (opts?.context_file_id) body.context_file_id = opts.context_file_id;
     const response = await fetch(`${this.baseUrl}/api/chat/${chatId}/message`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message }),
+      body: JSON.stringify(body),
     });
 
     if (!response.ok) {
@@ -106,6 +108,15 @@ export class BackendAPIClient {
   async disconnectDrive(): Promise<{ message: string }> {
     const response = await fetch(`${this.baseUrl}/api/drive/auth/disconnect`, { method: 'POST' });
     if (!response.ok) throw new Error('Disconnect failed');
+    return response.json();
+  }
+
+  /**
+   * List event summary files (Summaries folder or name contains "summary") for prompt suggestions
+   */
+  async getSummaries(): Promise<{ summaries: Array<{ id: string; name: string; modified_time: string | null }> }> {
+    const response = await fetch(`${this.baseUrl}/api/drive/summaries`);
+    if (!response.ok) throw new Error('Failed to list summaries');
     return response.json();
   }
 
