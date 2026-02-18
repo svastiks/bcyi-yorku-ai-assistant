@@ -1,19 +1,19 @@
-'use client'
+"use client";
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
-} from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
-import { Label } from '@/components/ui/label'
-import { Input } from '@/components/ui/input'
-import { cn } from '@/lib/utils'
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 import {
-  PROMPT_OUTPUT_OPTIONS,
+  getPromptOutputOptions,
   WRITING_TONE_OPTIONS,
   SOCIAL_MEDIA_TYPE_OPTIONS,
   LENGTH_OPTIONS,
@@ -23,17 +23,17 @@ import {
   STRATEGIC_GOAL_OPTIONS,
   OUTPUT_VARIATION_OPTIONS,
   buildPromptFromSelections,
-} from '@/lib/prompt-variables'
+} from "@/lib/prompt-variables";
 
-type SummaryItem = { id: string; name: string }
+type SummaryItem = { id: string; name: string };
 
 type Props = {
-  open: boolean
-  onClose: () => void
-  selectedSummary: SummaryItem | null
-  contentType: string
-  onGeneratePrompt: (promptText: string) => void
-}
+  open: boolean;
+  onClose: () => void;
+  selectedSummary: SummaryItem | null;
+  contentType: string;
+  onGeneratePrompt: (promptText: string) => void;
+};
 
 export function PromptVariablesModal({
   open,
@@ -42,62 +42,63 @@ export function PromptVariablesModal({
   contentType,
   onGeneratePrompt,
 }: Props) {
-  const [promptOutput, setPromptOutput] = useState('')
-  const [tone, setTone] = useState('')
-  const [socialType, setSocialType] = useState('')
-  const [length, setLength] = useState('')
-  const [structure, setStructure] = useState('')
-  const [include, setInclude] = useState<Set<string>>(new Set())
-  const [avoid, setAvoid] = useState<Set<string>>(new Set())
-  const [avoidTopic, setAvoidTopic] = useState('')
-  const [goal, setGoal] = useState('')
-  const [variations, setVariations] = useState<Set<string>>(new Set())
+  const [promptOutput, setPromptOutput] = useState("");
+  const [tone, setTone] = useState("");
+  const [socialType, setSocialType] = useState("");
+  const [length, setLength] = useState("");
+  const [structure, setStructure] = useState("");
+  const [include, setInclude] = useState<Set<string>>(new Set());
+  const [avoid, setAvoid] = useState<Set<string>>(new Set());
+  const [avoidTopic, setAvoidTopic] = useState("");
+  const [goal, setGoal] = useState("");
+  const [variations, setVariations] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    if (!open) return
-    setPromptOutput('')
-    setTone('')
-    setSocialType('')
-    setLength('')
-    setStructure('')
-    setInclude(new Set())
-    setAvoid(new Set())
-    setAvoidTopic('')
-    setGoal('')
-    setVariations(new Set())
-  }, [open])
+    if (!open) return;
+    setPromptOutput("");
+    setTone("");
+    setSocialType("");
+    setLength("");
+    setStructure("");
+    setInclude(new Set());
+    setAvoid(new Set());
+    setAvoidTopic("");
+    setGoal("");
+    setVariations(new Set());
+  }, [open]);
 
   const toggleInclude = (id: string, promptText: string) => {
     setInclude((prev) => {
-      const next = new Set(prev)
-      if (next.has(promptText)) next.delete(promptText)
-      else next.add(promptText)
-      return next
-    })
-  }
+      const next = new Set(prev);
+      if (next.has(promptText)) next.delete(promptText);
+      else next.add(promptText);
+      return next;
+    });
+  };
   const toggleAvoid = (id: string, promptText: string) => {
     setAvoid((prev) => {
-      const next = new Set(prev)
-      if (next.has(promptText)) next.delete(promptText)
-      else next.add(promptText)
-      return next
-    })
-  }
+      const next = new Set(prev);
+      if (next.has(promptText)) next.delete(promptText);
+      else next.add(promptText);
+      return next;
+    });
+  };
   const toggleVariation = (id: string, promptText: string) => {
     setVariations((prev) => {
-      const next = new Set(prev)
-      if (next.has(promptText)) next.delete(promptText)
-      else next.add(promptText)
-      return next
-    })
-  }
+      const next = new Set(prev);
+      if (next.has(promptText)) next.delete(promptText);
+      else next.add(promptText);
+      return next;
+    });
+  };
 
   const handleGenerate = () => {
     const promptText = buildPromptFromSelections({
       eventName: selectedSummary?.name,
       promptOutput: promptOutput || undefined,
       tone: tone || undefined,
-      socialType: contentType === 'social-media' ? socialType || undefined : undefined,
+      socialType:
+        contentType === "social-media" ? socialType || undefined : undefined,
       length: length || undefined,
       structure: structure || undefined,
       include: Array.from(include),
@@ -105,10 +106,10 @@ export function PromptVariablesModal({
       avoidTopic: avoidTopic.trim() || undefined,
       goal: goal || undefined,
       variations: Array.from(variations),
-    })
-    onGeneratePrompt(promptText)
-    onClose()
-  }
+    });
+    onGeneratePrompt(promptText);
+    onClose();
+  };
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
@@ -130,7 +131,7 @@ export function PromptVariablesModal({
           )}
 
           <Section label="Select Prompt Output">
-            {PROMPT_OUTPUT_OPTIONS.map((o) => (
+            {getPromptOutputOptions(contentType).map((o) => (
               <RadioRow
                 key={o.id}
                 label={o.label}
@@ -151,7 +152,7 @@ export function PromptVariablesModal({
             ))}
           </Section>
 
-          {contentType === 'social-media' && (
+          {contentType === "social-media" && (
             <Section label="Select Social Media Type">
               {SOCIAL_MEDIA_TYPE_OPTIONS.map((o) => (
                 <RadioRow
@@ -207,7 +208,9 @@ export function PromptVariablesModal({
               />
             ))}
             <div className="flex items-center gap-2 pt-1">
-              <Label className="text-xs text-muted-foreground">Avoid specific topic:</Label>
+              <Label className="text-xs text-muted-foreground">
+                Avoid specific topic:
+              </Label>
               <Input
                 placeholder="e.g. politics"
                 value={avoidTopic}
@@ -248,46 +251,69 @@ export function PromptVariablesModal({
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  )
+  );
 }
 
-function Section({ label, children }: { label: string; children: React.ReactNode }) {
+function Section({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className="space-y-2">
-      <Label className="text-xs font-semibold uppercase text-muted-foreground">{label}</Label>
+      <Label className="text-xs font-semibold uppercase text-muted-foreground">
+        {label}
+      </Label>
       <div className="space-y-1.5 pl-0">{children}</div>
     </div>
-  )
+  );
 }
 
 function RadioRow({
   label,
   checked,
   onSelect,
-}: { label: string; checked: boolean; onSelect: () => void }) {
+}: {
+  label: string;
+  checked: boolean;
+  onSelect: () => void;
+}) {
   return (
     <button
       type="button"
       onClick={onSelect}
       className={cn(
-        'w-full text-left rounded-md border px-3 py-2 text-sm transition-colors',
-        checked ? 'border-primary bg-primary/10' : 'border-border hover:bg-muted/50'
+        "w-full text-left rounded-md border px-3 py-2 text-sm transition-colors",
+        checked
+          ? "border-primary bg-primary/10"
+          : "border-border hover:bg-muted/50",
       )}
     >
       {label}
     </button>
-  )
+  );
 }
 
 function CheckRow({
   label,
   checked,
   onToggle,
-}: { label: string; checked: boolean; onToggle: () => void }) {
+}: {
+  label: string;
+  checked: boolean;
+  onToggle: () => void;
+}) {
   return (
     <label className="flex items-center gap-2 cursor-pointer rounded-md px-2 py-1.5 hover:bg-muted/50">
-      <input type="checkbox" checked={checked} onChange={onToggle} className="rounded" />
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={onToggle}
+        className="rounded"
+      />
       <span className="text-sm">{label}</span>
     </label>
-  )
+  );
 }
