@@ -137,6 +137,29 @@ async def get_drive_status():
     return {"authenticated": creds is not None}
 
 
+@router.get("/summaries")
+async def list_summaries():
+    """List event summary files (from Summaries folder or name contains 'summary') for suggestions."""
+    try:
+        credentials = get_drive_credentials()
+        drive_service = GoogleDriveService(credentials)
+        folder_id = drive_service.find_folder_by_name("Summaries")
+        if folder_id:
+            files = drive_service.list_files(folder_id=folder_id, page_size=50)
+        else:
+            files = drive_service.list_files_by_name("summary", page_size=50)
+        out = [
+            {"id": f.id, "name": f.name, "modified_time": f.modified_time.isoformat() if f.modified_time else None}
+            for f in files
+            if f.mime_type != "application/vnd.google-apps.folder"
+        ]
+        return {"summaries": out}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to list summaries: {str(e)}")
+
+
 @router.get("/files")
 async def list_drive_files(
     folder_id: Optional[str] = None,
