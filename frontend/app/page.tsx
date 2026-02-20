@@ -620,8 +620,14 @@ export default function ChatPage() {
 
         <div className="p-4 border-t border-border">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-bold">
-              BY
+            <div className="w-10 h-10 rounded  flex items-center justify-center text-primary-foreground font-bold">
+              <Image
+                  src={getIconPath('aorta-heart',isDark)}
+                  alt="Aorta"
+                  width={50}
+                  height={50}
+                  className="rounded-full shadow-sm"
+                />
             </div>
             <div>
               <p className="text-sm font-semibold text-foreground">
