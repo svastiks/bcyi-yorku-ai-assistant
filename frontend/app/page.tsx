@@ -19,6 +19,8 @@ import ReactMarkdown from "react-markdown";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { PromptVariablesModal } from "@/components/prompt-variables-modal";
+import { useTheme } from "next-themes";
+import { getIconPath } from '@/lib/icon-utils'
 
 type Message = {
   id: string;
@@ -132,20 +134,27 @@ export default function ChatPage() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const retryOnLoadRef = useRef(false);
 
+  const { theme } = useTheme();
+
+  const isDark = theme === 'dark' || (theme === 'system' && typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+
   const getContentTypeIconSrc = (value: ContentType) => {
+    const iconFolder = isDark ? '/icons/darkModeIcons' : '/icons'
+
     switch (value) {
       case "newsletter":
-        return "/icons/newsletter.png";
+        return `${iconFolder}/newsletter.png`
       case "blog-post":
-        return "/icons/blog-post.png";
+        return `${iconFolder}/blog-post.png`
       case "donor-email":
-        return "/icons/donor-email.png";
+        return `${iconFolder}/donor-email.png`
       case "social-media":
-        return "/icons/social-media.png";
+        return `${iconFolder}/social-media.png`
       default:
-        return "/icons/general.png";
+        return `${iconFolder}/general.png`
     }
   };
+  const src = getIconPath('aorta-heart', isDark)
 
   const currentSession = chatSessions.find((s) => s.id === currentSessionId);
 
@@ -630,7 +639,7 @@ export default function ChatPage() {
 
               <div className="hidden md:flex items-center gap-3">
                 <Image
-                  src="/icons/aorta-heart.png"
+                  src={getIconPath('aorta-heart',isDark)}
                   alt="Aorta"
                   width={32}
                   height={32}
