@@ -19,6 +19,8 @@ import ReactMarkdown from "react-markdown";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { PromptVariablesModal } from "@/components/prompt-variables-modal";
+import { useTheme } from "next-themes";
+import { getIconPath } from '@/lib/icon-utils'
 
 type Message = {
   id: string;
@@ -128,24 +130,32 @@ export default function ChatPage() {
   );
   const [promptModalOpen, setPromptModalOpen] = useState(false);
   const [loadingSummaries, setLoadingSummaries] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const retryOnLoadRef = useRef(false);
 
+  const { theme } = useTheme();
+
+  const isDark = mounted && (theme === 'dark' || (theme === 'system' && typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches));
+
   const getContentTypeIconSrc = (value: ContentType) => {
+    const iconFolder = isDark ? '/icons/darkModeIcons' : '/icons'
+
     switch (value) {
       case "newsletter":
-        return "/icons/newsletter.png";
+        return `${iconFolder}/newsletter.png`
       case "blog-post":
-        return "/icons/blog-post.png";
+        return `${iconFolder}/blog-post.png`
       case "donor-email":
-        return "/icons/donor-email.png";
+        return `${iconFolder}/donor-email.png`
       case "social-media":
-        return "/icons/social-media.png";
+        return `${iconFolder}/social-media.png`
       default:
-        return "/icons/general.png";
+        return `${iconFolder}/general.png`
     }
   };
+  const src = getIconPath('aorta-heart', isDark)
 
   const currentSession = chatSessions.find((s) => s.id === currentSessionId);
 
@@ -207,6 +217,11 @@ export default function ChatPage() {
     }
     setHydrated(true);
   }, []);
+  
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+  
   useEffect(() => {
     if (!hydrated) return;
     saveChatsToStorage(chatSessions, currentSessionId);
@@ -605,8 +620,14 @@ export default function ChatPage() {
 
         <div className="p-4 border-t border-border">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-bold">
-              BY
+            <div className="w-10 h-10 rounded  flex items-center justify-center text-primary-foreground font-bold">
+              <Image
+                  src={getIconPath('aorta-heart',isDark)}
+                  alt="Aorta"
+                  width={50}
+                  height={50}
+                  className="rounded-full shadow-sm"
+                />
             </div>
             <div>
               <p className="text-sm font-semibold text-foreground">
@@ -630,7 +651,7 @@ export default function ChatPage() {
 
               <div className="hidden md:flex items-center gap-3">
                 <Image
-                  src="/icons/aorta-heart.png"
+                  src={getIconPath('aorta-heart',isDark)}
                   alt="Aorta"
                   width={32}
                   height={32}
@@ -702,10 +723,10 @@ export default function ChatPage() {
         <div className="flex-1 overflow-y-auto">
           <div className="max-w-4xl mx-auto p-4 space-y-6">
             {messages.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full min-h-[400px] text-center">
+              <div className="flex flex-col items-center justify-center h-full min-h-100 text-center">
                 <div className="w-16 h-16 rounded-2xl bg-card border border-border flex items-center justify-center mb-6 shadow-md">
                   <Image
-                    src="/icons/aorta-heart-center.png"
+                    src="/icons/aorta-heart.png"
                     alt="Aorta heart"
                     width={40}
                     height={40}
