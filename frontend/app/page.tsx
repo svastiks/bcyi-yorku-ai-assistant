@@ -130,13 +130,14 @@ export default function ChatPage() {
   );
   const [promptModalOpen, setPromptModalOpen] = useState(false);
   const [loadingSummaries, setLoadingSummaries] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const retryOnLoadRef = useRef(false);
 
   const { theme } = useTheme();
 
-  const isDark = theme === 'dark' || (theme === 'system' && typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  const isDark = mounted && (theme === 'dark' || (theme === 'system' && typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches));
 
   const getContentTypeIconSrc = (value: ContentType) => {
     const iconFolder = isDark ? '/icons/darkModeIcons' : '/icons'
@@ -216,6 +217,11 @@ export default function ChatPage() {
     }
     setHydrated(true);
   }, []);
+  
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+  
   useEffect(() => {
     if (!hydrated) return;
     saveChatsToStorage(chatSessions, currentSessionId);
