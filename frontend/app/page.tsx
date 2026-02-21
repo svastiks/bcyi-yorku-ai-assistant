@@ -635,16 +635,14 @@ export default function ChatPage() {
                       : "hover:bg-accent text-foreground",
                   )}
                 >
-                  {type.value !== "general" && (
-                    <span className="inline-flex h-5 w-5 items-center justify-center rounded-md bg-background/40">
-                      <Image
-                        src={getContentTypeIconSrc(type.value as ContentType)}
-                        alt={type.label}
-                        width={16}
-                        height={16}
-                      />
-                    </span>
-                  )}
+                  <span className="inline-flex h-5 w-5 items-center justify-center rounded-md bg-background/40">
+                    <Image
+                      src={getContentTypeIconSrc(type.value as ContentType)}
+                      alt={type.label}
+                      width={16}
+                      height={16}
+                    />
+                  </span>
                   {type.label}
                 </button>
               ))}
