@@ -72,6 +72,14 @@ type YouTubeVideo = {
   videoUrl: string;
 };
 
+type MetaPost = { message: string; created_time: string; likes: number; comments: number };
+type MetaPage = { id: string; name: string; followers_count: string; fan_count: string; pageUrl: string; posts: MetaPost[] };
+type InstagramMedia = { id: string; caption: string; timestamp: string; media_type: string; media_url: string; thumbnail_url: string; mediaUrl: string };
+type MetaData = {
+  facebook: { pages: MetaPage[] };
+  instagram: { username: string; followers_count: string; media_count: string; profile_picture_url: string; profileUrl: string; media: InstagramMedia[] } | null;
+};
+
 const contentTypes = [
   { value: "newsletter", label: "Newsletter" },
   { value: "blog-post", label: "Blog Post" },
@@ -160,6 +168,12 @@ export default function ChatPage() {
   const [youtubeLoading, setYoutubeLoading] = useState(false);
   const [youtubeError, setYoutubeError] = useState<string | null>(null);
   const [youtubeFetched, setYoutubeFetched] = useState(false);
+  const [metaConnected, setMetaConnected] = useState<boolean | null>(null);
+  const [metaData, setMetaData] = useState<MetaData | null>(null);
+  const [metaLoading, setMetaLoading] = useState(false);
+  const [metaError, setMetaError] = useState<string | null>(null);
+  const [metaFetched, setMetaFetched] = useState(false);
+  const [activeSocialPlatform, setActiveSocialPlatform] = useState<"youtube" | "facebook" | "instagram" | null>(null);
   const messageRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -296,6 +310,13 @@ export default function ChatPage() {
   }, []);
 
   useEffect(() => {
+    fetch("/api/meta/auth/status")
+      .then((r) => r.json())
+      .then((d) => setMetaConnected(d.connected))
+      .catch(() => setMetaConnected(false));
+  }, []);
+
+  useEffect(() => {
     if (!driveConnected) {
       setSummaries([]);
       return;
@@ -315,6 +336,15 @@ export default function ChatPage() {
     }
     if (params.get("drive_error")) {
       alert("Drive connect error: " + params.get("drive_error"));
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+    if (params.get("meta_connected") === "1") {
+      setMetaConnected(true);
+      setSelectedType("social-reach");
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+    if (params.get("meta_error")) {
+      alert("Meta connect error: " + params.get("meta_error"));
       window.history.replaceState({}, "", window.location.pathname);
     }
   }, []);
@@ -589,6 +619,47 @@ export default function ChatPage() {
     }
   };
 
+  const connectMeta = async () => {
+    try {
+      const res = await fetch("/api/meta/auth/url");
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to get Meta auth URL");
+      window.location.href = data.url;
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Connect failed");
+    }
+  };
+
+  const disconnectMeta = async () => {
+    try {
+      await fetch("/api/meta/auth/disconnect", { method: "POST" });
+      setMetaConnected(false);
+      setMetaData(null);
+      setMetaFetched(false);
+      setMetaError(null);
+      setActiveSocialPlatform(null);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Disconnect failed");
+    }
+  };
+
+  const fetchMetaData = async () => {
+    if (metaFetched && metaData) return;
+    setMetaLoading(true);
+    setMetaError(null);
+    try {
+      const res = await fetch("/api/meta/data");
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to fetch Meta data");
+      setMetaData(data);
+      setMetaFetched(true);
+    } catch (e) {
+      setMetaError(e instanceof Error ? e.message : "Failed to fetch Meta data");
+    } finally {
+      setMetaLoading(false);
+    }
+  };
+
   const formatCount = (n: string) => {
     const num = parseInt(n, 10);
     if (isNaN(num)) return "0";
@@ -846,11 +917,15 @@ export default function ChatPage() {
               </div>
 
               {/* Platform buttons */}
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2 items-center">
+                {/* YouTube */}
                 <Button
-                  variant={youtubeData ? "default" : "outline"}
+                  variant={activeSocialPlatform === "youtube" ? "default" : "outline"}
                   size="sm"
-                  onClick={fetchYouTubeData}
+                  onClick={() => {
+                    setActiveSocialPlatform("youtube");
+                    fetchYouTubeData();
+                  }}
                   disabled={youtubeLoading}
                   className="flex items-center gap-2"
                 >
@@ -859,121 +934,378 @@ export default function ChatPage() {
                   </svg>
                   YouTube
                 </Button>
-              </div>
 
-              {/* Loading spinner */}
-              {youtubeLoading && (
-                <div className="flex items-center gap-3 text-muted-foreground">
-                  <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                  <span className="text-sm">Loading YouTube data…</span>
-                </div>
-              )}
-
-              {/* Error */}
-              {youtubeError && !youtubeLoading && (
-                <Card className="p-4 border-destructive/50 bg-destructive/5">
-                  <p className="text-sm text-destructive mb-3">{youtubeError}</p>
+                {/* Facebook */}
+                {metaConnected ? (
+                  <Button
+                    variant={activeSocialPlatform === "facebook" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => {
+                      setActiveSocialPlatform("facebook");
+                      fetchMetaData();
+                    }}
+                    disabled={metaLoading}
+                    className="flex items-center gap-2"
+                  >
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                    </svg>
+                    Facebook
+                  </Button>
+                ) : (
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => { setYoutubeFetched(false); fetchYouTubeData(); }}
+                    onClick={connectMeta}
+                    className="flex items-center gap-2"
                   >
-                    Retry
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                    </svg>
+                    Connect Facebook
                   </Button>
-                </Card>
-              )}
+                )}
 
-              {/* Channel overview */}
-              {youtubeData?.channel && !youtubeLoading && (
-                <Card className="p-5">
-                  <div className="flex items-center gap-4">
-                    {youtubeData.channel.thumbnail && (
-                      <Image
-                        src={youtubeData.channel.thumbnail}
-                        alt={youtubeData.channel.name}
-                        width={64}
-                        height={64}
-                        className="rounded-full border border-border"
-                      />
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <a
-                        href={youtubeData.channel.channelUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-lg font-semibold text-foreground hover:text-primary transition-colors truncate block"
-                      >
-                        {youtubeData.channel.name}
-                      </a>
-                      <div className="flex flex-wrap gap-6 mt-2">
-                        <div>
-                          <p className="text-xs text-muted-foreground">Subscribers</p>
-                          <p className="text-base font-semibold text-foreground">{formatCount(youtubeData.channel.subscriberCount)}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground">Total Views</p>
-                          <p className="text-base font-semibold text-foreground">{formatCount(youtubeData.channel.viewCount)}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground">Videos</p>
-                          <p className="text-base font-semibold text-foreground">{formatCount(youtubeData.channel.videoCount)}</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </Card>
-              )}
+                {/* Instagram */}
+                {metaConnected ? (
+                  <Button
+                    variant={activeSocialPlatform === "instagram" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => {
+                      setActiveSocialPlatform("instagram");
+                      fetchMetaData();
+                    }}
+                    disabled={metaLoading}
+                    className="flex items-center gap-2"
+                  >
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 1 0 0 12.324 6.162 6.162 0 0 0 0-12.324zM12 16a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm6.406-11.845a1.44 1.44 0 1 0 0 2.881 1.44 1.44 0 0 0 0-2.881z"/>
+                    </svg>
+                    Instagram
+                  </Button>
+                ) : (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={connectMeta}
+                    className="flex items-center gap-2"
+                  >
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 1 0 0 12.324 6.162 6.162 0 0 0 0-12.324zM12 16a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm6.406-11.845a1.44 1.44 0 1 0 0 2.881 1.44 1.44 0 0 0 0-2.881z"/>
+                    </svg>
+                    Connect Instagram
+                  </Button>
+                )}
 
-              {/* Recent videos */}
-              {youtubeData?.videos && youtubeData.videos.length > 0 && !youtubeLoading && (
+                {/* TikTok — Coming Soon */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled
+                  className="flex items-center gap-2 opacity-50 cursor-not-allowed"
+                >
+                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 0 0-.79-.05 6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.33-6.34V8.69a8.27 8.27 0 0 0 4.83 1.54V6.78a4.85 4.85 0 0 1-1.06-.09z"/>
+                  </svg>
+                  TikTok — Coming Soon
+                </Button>
+              </div>
+
+              {/* Disconnect link */}
+              {metaConnected && (
                 <div>
-                  <h3 className="text-base font-semibold text-foreground mb-3">Recent Videos</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {youtubeData.videos.map((video) => (
-                      <Card key={video.id} className="py-0 overflow-hidden">
-                        <a
-                          href={video.videoUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="block"
-                        >
-                          {video.thumbnail && (
-                            <div className="relative w-full aspect-video bg-muted">
-                              <Image
-                                src={video.thumbnail}
-                                alt={video.title}
-                                fill
-                                className="object-cover"
-                              />
-                            </div>
-                          )}
-                        </a>
-                        <div className="p-3 space-y-1">
+                  <button
+                    onClick={disconnectMeta}
+                    className="text-xs text-muted-foreground hover:text-destructive underline transition-colors"
+                  >
+                    Disconnect Facebook / Instagram
+                  </button>
+                </div>
+              )}
+
+              {/* ── YouTube content ── */}
+              {activeSocialPlatform === "youtube" && (
+                <>
+                  {youtubeLoading && (
+                    <div className="flex items-center gap-3 text-muted-foreground">
+                      <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                      <span className="text-sm">Loading YouTube data…</span>
+                    </div>
+                  )}
+                  {youtubeError && !youtubeLoading && (
+                    <Card className="p-4 border-destructive/50 bg-destructive/5">
+                      <p className="text-sm text-destructive mb-3">{youtubeError}</p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => { setYoutubeFetched(false); fetchYouTubeData(); }}
+                      >
+                        Retry
+                      </Button>
+                    </Card>
+                  )}
+                  {youtubeData?.channel && !youtubeLoading && (
+                    <Card className="p-5">
+                      <div className="flex items-center gap-4">
+                        {youtubeData.channel.thumbnail && (
+                          <Image
+                            src={youtubeData.channel.thumbnail}
+                            alt={youtubeData.channel.name}
+                            width={64}
+                            height={64}
+                            className="rounded-full border border-border"
+                          />
+                        )}
+                        <div className="flex-1 min-w-0">
                           <a
-                            href={video.videoUrl}
+                            href={youtubeData.channel.channelUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-sm font-medium text-foreground hover:text-primary transition-colors line-clamp-2 block"
+                            className="text-lg font-semibold text-foreground hover:text-primary transition-colors truncate block"
                           >
-                            {video.title}
+                            {youtubeData.channel.name}
                           </a>
-                          <p className="text-xs text-muted-foreground">
-                            {new Date(video.publishedAt).toLocaleDateString(undefined, {
-                              year: "numeric",
-                              month: "short",
-                              day: "numeric",
-                            })}
-                          </p>
-                          <div className="flex gap-3 text-xs text-muted-foreground pt-1">
-                            <span>{formatCount(video.viewCount)} views</span>
-                            <span>{formatCount(video.likeCount)} likes</span>
-                            <span>{formatCount(video.commentCount)} comments</span>
+                          <div className="flex flex-wrap gap-6 mt-2">
+                            <div>
+                              <p className="text-xs text-muted-foreground">Subscribers</p>
+                              <p className="text-base font-semibold text-foreground">{formatCount(youtubeData.channel.subscriberCount)}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-muted-foreground">Total Views</p>
+                              <p className="text-base font-semibold text-foreground">{formatCount(youtubeData.channel.viewCount)}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-muted-foreground">Videos</p>
+                              <p className="text-base font-semibold text-foreground">{formatCount(youtubeData.channel.videoCount)}</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </Card>
+                  )}
+                  {youtubeData?.videos && youtubeData.videos.length > 0 && !youtubeLoading && (
+                    <div>
+                      <h3 className="text-base font-semibold text-foreground mb-3">Recent Videos</h3>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {youtubeData.videos.map((video) => (
+                          <Card key={video.id} className="py-0 overflow-hidden">
+                            <a
+                              href={video.videoUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="block"
+                            >
+                              {video.thumbnail && (
+                                <div className="relative w-full aspect-video bg-muted">
+                                  <Image
+                                    src={video.thumbnail}
+                                    alt={video.title}
+                                    fill
+                                    className="object-cover"
+                                  />
+                                </div>
+                              )}
+                            </a>
+                            <div className="p-3 space-y-1">
+                              <a
+                                href={video.videoUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-sm font-medium text-foreground hover:text-primary transition-colors line-clamp-2 block"
+                              >
+                                {video.title}
+                              </a>
+                              <p className="text-xs text-muted-foreground">
+                                {new Date(video.publishedAt).toLocaleDateString(undefined, {
+                                  year: "numeric",
+                                  month: "short",
+                                  day: "numeric",
+                                })}
+                              </p>
+                              <div className="flex gap-3 text-xs text-muted-foreground pt-1">
+                                <span>{formatCount(video.viewCount)} views</span>
+                                <span>{formatCount(video.likeCount)} likes</span>
+                                <span>{formatCount(video.commentCount)} comments</span>
+                              </div>
+                            </div>
+                          </Card>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {/* ── Facebook content ── */}
+              {activeSocialPlatform === "facebook" && (
+                <>
+                  {metaLoading && (
+                    <div className="flex items-center gap-3 text-muted-foreground">
+                      <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                      <span className="text-sm">Loading Facebook data…</span>
+                    </div>
+                  )}
+                  {metaError && !metaLoading && (
+                    <Card className="p-4 border-destructive/50 bg-destructive/5">
+                      <p className="text-sm text-destructive mb-3">{metaError}</p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => { setMetaFetched(false); fetchMetaData(); }}
+                      >
+                        Retry
+                      </Button>
+                    </Card>
+                  )}
+                  {metaData?.facebook.pages.map((page) => (
+                    <div key={page.id} className="space-y-4">
+                      <Card className="p-5">
+                        <div className="flex-1 min-w-0">
+                          <a
+                            href={page.pageUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-lg font-semibold text-foreground hover:text-primary transition-colors block"
+                          >
+                            {page.name}
+                          </a>
+                          <div className="flex flex-wrap gap-6 mt-2">
+                            <div>
+                              <p className="text-xs text-muted-foreground">Fans</p>
+                              <p className="text-base font-semibold text-foreground">{formatCount(page.fan_count)}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-muted-foreground">Followers</p>
+                              <p className="text-base font-semibold text-foreground">{formatCount(page.followers_count)}</p>
+                            </div>
                           </div>
                         </div>
                       </Card>
-                    ))}
-                  </div>
-                </div>
+                      {page.posts.length > 0 && (
+                        <div>
+                          <h3 className="text-base font-semibold text-foreground mb-3">Recent Posts</h3>
+                          <div className="space-y-3">
+                            {page.posts.map((post, i) => (
+                              <Card key={i} className="p-4">
+                                <p className="text-sm text-foreground line-clamp-3">{post.message || <span className="italic text-muted-foreground">No text</span>}</p>
+                                <div className="flex gap-4 mt-2 text-xs text-muted-foreground">
+                                  <span>{new Date(post.created_time).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}</span>
+                                  <span>{post.likes} likes</span>
+                                  <span>{post.comments} comments</span>
+                                </div>
+                              </Card>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                  {!metaLoading && !metaError && metaData && metaData.facebook.pages.length === 0 && (
+                    <p className="text-sm text-muted-foreground">No Facebook Pages found on this account.</p>
+                  )}
+                </>
+              )}
+
+              {/* ── Instagram content ── */}
+              {activeSocialPlatform === "instagram" && (
+                <>
+                  {metaLoading && (
+                    <div className="flex items-center gap-3 text-muted-foreground">
+                      <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                      <span className="text-sm">Loading Instagram data…</span>
+                    </div>
+                  )}
+                  {metaError && !metaLoading && (
+                    <Card className="p-4 border-destructive/50 bg-destructive/5">
+                      <p className="text-sm text-destructive mb-3">{metaError}</p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => { setMetaFetched(false); fetchMetaData(); }}
+                      >
+                        Retry
+                      </Button>
+                    </Card>
+                  )}
+                  {!metaLoading && !metaError && metaData && !metaData.instagram && (
+                    <Card className="p-5">
+                      <p className="text-sm text-muted-foreground">No Instagram Business account linked to your Facebook Page. Connect your Instagram account in Facebook Page settings first.</p>
+                    </Card>
+                  )}
+                  {metaData?.instagram && !metaLoading && (
+                    <div className="space-y-4">
+                      <Card className="p-5">
+                        <div className="flex items-center gap-4">
+                          {metaData.instagram.profile_picture_url && (
+                            <Image
+                              src={metaData.instagram.profile_picture_url}
+                              alt={metaData.instagram.username}
+                              width={64}
+                              height={64}
+                              className="rounded-full border border-border"
+                            />
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <a
+                              href={metaData.instagram.profileUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-lg font-semibold text-foreground hover:text-primary transition-colors block"
+                            >
+                              @{metaData.instagram.username}
+                            </a>
+                            <div className="flex flex-wrap gap-6 mt-2">
+                              <div>
+                                <p className="text-xs text-muted-foreground">Followers</p>
+                                <p className="text-base font-semibold text-foreground">{formatCount(metaData.instagram.followers_count)}</p>
+                              </div>
+                              <div>
+                                <p className="text-xs text-muted-foreground">Posts</p>
+                                <p className="text-base font-semibold text-foreground">{formatCount(metaData.instagram.media_count)}</p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </Card>
+                      {metaData.instagram.media.length > 0 && (
+                        <div>
+                          <h3 className="text-base font-semibold text-foreground mb-3">Recent Posts</h3>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {metaData.instagram.media.map((item) => (
+                              <Card key={item.id} className="py-0 overflow-hidden">
+                                <a href={item.mediaUrl} target="_blank" rel="noopener noreferrer" className="block">
+                                  {(item.thumbnail_url || item.media_url) && (
+                                    <div className="relative w-full aspect-square bg-muted">
+                                      <Image
+                                        src={item.thumbnail_url || item.media_url}
+                                        alt={item.caption || "Instagram post"}
+                                        fill
+                                        className="object-cover"
+                                      />
+                                    </div>
+                                  )}
+                                </a>
+                                <div className="p-3 space-y-1">
+                                  {item.caption && (
+                                    <p className="text-sm text-foreground line-clamp-2">{item.caption}</p>
+                                  )}
+                                  <p className="text-xs text-muted-foreground">
+                                    {new Date(item.timestamp).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}
+                                  </p>
+                                </div>
+                              </Card>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </>
+              )}
+
+              {/* ── No platform selected ── */}
+              {activeSocialPlatform === null && (
+                <p className="text-sm text-muted-foreground">Select a platform above to view analytics.</p>
               )}
             </div>
           </div>
