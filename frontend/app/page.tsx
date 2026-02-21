@@ -791,7 +791,7 @@ export default function ChatPage() {
                         textareaRef.current?.focus();
                       }}
                     >
-                      <div className="mb-3 flex items-center justify-center">
+                      <div className="mt-2 mb-3 flex items-center justify-center">
                         <Image
                           src={getContentTypeIconSrc(type.value as ContentType)}
                           alt={type.label}
