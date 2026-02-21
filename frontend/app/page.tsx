@@ -138,8 +138,25 @@ export default function ChatPage() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const retryOnLoadRef = useRef(false);
 
+  const stripMarkdown = (markdown: string): string => {
+    return markdown
+      .replace(/```[\s\S]*?```/g, '')         // fenced code blocks
+      .replace(/#{1,6}\s+/gm, '')             // headings
+      .replace(/\*\*(.+?)\*\*/g, '$1')        // bold **
+      .replace(/__(.+?)__/g, '$1')            // bold __
+      .replace(/\*(.+?)\*/g, '$1')            // italic *
+      .replace(/_(.+?)_/g, '$1')              // italic _
+      .replace(/~~(.+?)~~/g, '$1')            // strikethrough
+      .replace(/`(.+?)`/g, '$1')              // inline code
+      .replace(/\[(.+?)\]\(.+?\)/g, '$1')    // links
+      .replace(/^\s*[-*+]\s+/gm, '')          // unordered lists
+      .replace(/^\s*\d+\.\s+/gm, '')          // ordered lists
+      .replace(/^\s*>\s+/gm, '')              // blockquotes
+      .trim();
+  };
+
   const handleCopy = (id: string, content: string) => {
-    navigator.clipboard.writeText(content).then(() => {
+    navigator.clipboard.writeText(stripMarkdown(content)).then(() => {
       setCopiedId(id);
       setTimeout(() => setCopiedId(null), 2000);
     });
