@@ -14,6 +14,8 @@ import {
   Menu,
   Plus,
   FolderInput,
+  Copy,
+  Check,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { cn } from "@/lib/utils";
@@ -131,6 +133,8 @@ export default function ChatPage() {
   const [promptModalOpen, setPromptModalOpen] = useState(false);
   const [loadingSummaries, setLoadingSummaries] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const messageRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const retryOnLoadRef = useRef(false);
@@ -288,6 +292,36 @@ export default function ChatPage() {
       window.history.replaceState({}, "", window.location.pathname);
     }
   }, []);
+
+  const copyMessage = async (messageId: string) => {
+    const element = messageRefs.current[messageId];
+    if (!element) return;
+
+    const htmlContent = element.innerHTML;
+    const textContent = element.innerText;
+
+    try {
+      if (typeof ClipboardItem !== "undefined") {
+        await navigator.clipboard.write([
+          new ClipboardItem({
+            "text/plain": new Blob([textContent], { type: "text/plain" }),
+            "text/html": new Blob([htmlContent], { type: "text/html" }),
+          }),
+        ]);
+      } else {
+        await navigator.clipboard.writeText(textContent);
+      }
+    } catch {
+      try {
+        await navigator.clipboard.writeText(textContent);
+      } catch {
+        // silently fail
+      }
+    }
+
+    setCopiedId(messageId);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -802,14 +836,30 @@ export default function ChatPage() {
                   )}
                   <div
                     className={cn(
-                      "max-w-[80%] rounded-2xl px-6 py-4",
+                      "relative max-w-[80%] rounded-2xl px-6 py-4",
                       message.role === "user"
                         ? "bg-primary text-primary-foreground"
                         : "bg-card border border-border text-foreground",
                     )}
                   >
+                    {message.role === "assistant" && (
+                      <button
+                        onClick={() => copyMessage(message.id)}
+                        className="absolute top-2 right-2 p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                        title="Copy output"
+                      >
+                        {copiedId === message.id ? (
+                          <Check className="w-4 h-4 text-green-500" />
+                        ) : (
+                          <Copy className="w-4 h-4" />
+                        )}
+                      </button>
+                    )}
                     {message.role === "assistant" ? (
-                      <div className="leading-relaxed [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_h1]:font-bold [&_h2]:font-bold [&_h3]:font-bold [&_p]:my-2 [&_p:first-child]:mt-0 [&_p:last-child]:mb-0">
+                      <div
+                        ref={(el) => { messageRefs.current[message.id] = el; }}
+                        className="leading-relaxed pr-6 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_h1]:font-bold [&_h2]:font-bold [&_h3]:font-bold [&_p]:my-2 [&_p:first-child]:mt-0 [&_p:last-child]:mb-0"
+                      >
                         <ReactMarkdown>{message.content}</ReactMarkdown>
                       </div>
                     ) : (
