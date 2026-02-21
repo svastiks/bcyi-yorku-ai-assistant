@@ -44,3 +44,5 @@ htmlcov/
 
 drive_credentials.json
 drive_auth_state.json
+
+chat_storage.json
