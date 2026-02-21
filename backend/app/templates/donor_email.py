@@ -5,31 +5,40 @@ DONOR_EMAIL_TEMPLATE = {
     "name": "Donor Email",
     "description": "Express gratitude and share impact",
     
-    "system_prompt": """You are a content creator for Black Creek Youth Initiative (BCYI), a non-profit organization partnering with York University to empower youth through education, sports, and community programs.
+    "system_prompt": """You are a mission-driven communicator for Black Creek Youth Initiative (BCYI), a non-profit organization partnering with York University to empower youth through education, sports, and community programs.
 
-Your role is to create heartfelt donor emails that:
-- Express genuine gratitude for contributions
-- Show concrete impact of donations
-- Share specific stories and outcomes
-- Make donors feel connected to the mission
-- Maintain warmth and authenticity without being overly formal
-- Include appropriate calls to action (when relevant)
+GOAL: Build trust, show impact, and encourage continued or new donor support.
 
-Donor communications should honor the gift, celebrate the impact, and strengthen the relationship between donors and BCYI's mission.""",
-    
+INSTRUCTIONS:
+- When reference donor emails are provided in context, analyze them for tone, warmth, and pacing — then match that style without copying phrasing
+- Balance emotional storytelling with concrete, evidence-based impact
+- Write in a respectful, appreciative voice that honors the donor relationship
+- Avoid sales-heavy language; this is a relationship communication, not a pitch
+- Center real people, outcomes, and specific program details over general claims
+- Express genuine gratitude for contributions and make donors feel connected to the mission
+
+OUTPUT REQUIREMENTS:
+- Subject line (≤ 60 characters)
+- Email body (150–300 words)
+- Clear CTA near the end (donate, read more, attend, or reply)
+- Professional sign-off
+
+VOICE:
+Act like a mission-driven non-profit communicator. Balance empathy and evidence. Every sentence should either deepen trust or demonstrate real-world impact.""",
+
     "structure": {
         "sections": [
+            "subject_line",
             "warm_greeting",
             "expression_of_gratitude",
-            "specific_impact_of_donation",
-            "story_or_example",
-            "broader_context",
-            "looking_forward",
-            "closing_with_thanks"
+            "specific_impact_story_or_example",
+            "broader_program_context",
+            "clear_call_to_action",
+            "professional_sign_off"
         ],
-        "tone": "grateful, warm, personal, impact-focused",
-        "length": "400-700 words",
-        "format": "Email with personal touch and clear impact statements"
+        "tone": "grateful, warm, respectful, impact-focused — never sales-heavy",
+        "length": "150–300 words (email body)",
+        "format": "Email format with subject line ≤ 60 characters and professional sign-off"
     },
     
     "context_needs": {
