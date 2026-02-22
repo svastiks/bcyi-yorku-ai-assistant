@@ -718,7 +718,7 @@ export default function ChatPage() {
                 <span className="inline-flex h-5 w-5 items-center justify-center rounded-md bg-background/40">
                   <BarChart2 className="w-4 h-4" />
                 </span>
-                Social Reach
+                Social Media Stats
               </button>
               <button
                 onClick={() => setSelectedType("general")}
@@ -801,57 +801,87 @@ export default function ChatPage() {
             </div>
 
             <div className="flex items-center gap-2">
-              {driveConnected ? (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={disconnectDrive}
-                  className="hidden sm:inline-flex"
-                >
-                  Disconnect Drive
-                </Button>
-              ) : (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={connectDrive}
-                  className="hidden sm:inline-flex"
-                >
-                  Connect Google Drive
-                </Button>
-              )}
+              {/* Social Media Stats button */}
               <Button
-                variant="outline"
+                variant={selectedType === "social-reach" ? "default" : "outline"}
                 size="sm"
-                onClick={listDriveFiles}
-                disabled={listing}
-                className="hidden md:inline-flex"
+                onClick={() => setSelectedType("social-reach")}
+                className="hidden sm:inline-flex items-center gap-2"
               >
-                {listing ? "Listing…" : "List files"}
+                <BarChart2 className="w-4 h-4" />
+                Social Media Stats
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={sortDrive}
-                disabled={sorting}
-                className="hidden md:inline-flex"
-              >
-                <FolderInput className="w-4 h-4 mr-2" />
-                {sorting ? "Sorting…" : "Sort Drive"}
-              </Button>
+
+              {/* Drive buttons group */}
+              <div className="hidden md:flex items-center gap-1 bg-muted/60 border border-border rounded-lg px-1.5 py-1">
+                {driveConnected ? (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={disconnectDrive}
+                    className="h-7 text-xs"
+                  >
+                    Disconnect Drive
+                  </Button>
+                ) : (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={connectDrive}
+                    className="h-7 text-xs"
+                  >
+                    Connect Google Drive
+                  </Button>
+                )}
+                <div className="w-px h-4 bg-border" />
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={listDriveFiles}
+                  disabled={listing}
+                  className="h-7 text-xs"
+                >
+                  {listing ? "Listing…" : "List files"}
+                </Button>
+                <div className="w-px h-4 bg-border" />
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={sortDrive}
+                  disabled={sorting}
+                  className="h-7 text-xs"
+                >
+                  <FolderInput className="w-3.5 h-3.5 mr-1.5" />
+                  {sorting ? "Sorting…" : "Sort Drive"}
+                </Button>
+              </div>
+
+              {/* Mobile: just connect/disconnect drive */}
+              <div className="flex sm:hidden">
+                {driveConnected ? (
+                  <Button variant="outline" size="sm" onClick={disconnectDrive}>
+                    Disconnect Drive
+                  </Button>
+                ) : (
+                  <Button variant="outline" size="sm" onClick={connectDrive}>
+                    Connect Drive
+                  </Button>
+                )}
+              </div>
+
               <ThemeToggle />
             </div>
           </div>
         </header>
 
         {selectedType === "social-reach" ? (
-          /* Social Reach Analytics Dashboard */
+          /* Social Media Stats Dashboard */
           <div className="flex-1 overflow-y-auto p-6">
             <div className="max-w-5xl mx-auto space-y-6">
               {/* Heading */}
               <div className="flex items-center gap-3">
                 <BarChart2 className="w-6 h-6 text-primary" />
-                <h2 className="text-2xl font-bold text-foreground">Social Reach</h2>
+                <h2 className="text-2xl font-bold text-foreground">Social Media Stats</h2>
               </div>
 
               {/* Platform buttons */}
