@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
 
 const GRAPH = 'https://graph.facebook.com/v19.0'
+const PAGE_ID = '100075897078349'
+const IG_USERNAME = 'blackcreekyouthinitiative'
 
 async function graphGet(path: string, token: string, params: Record<string, string> = {}) {
   const url = new URL(`${GRAPH}${path}`)
@@ -14,114 +15,95 @@ async function graphGet(path: string, token: string, params: Record<string, stri
 }
 
 export async function GET() {
-  const cookieStore = await cookies()
-  const token = cookieStore.get('meta_access_token')?.value
+  const token = process.env.META_PAGE_ACCESS_TOKEN
 
   if (!token) {
-    return NextResponse.json({ error: 'Not connected to Meta' }, { status: 401 })
+    return NextResponse.json({ error: 'META_PAGE_ACCESS_TOKEN is not set in environment variables' }, { status: 500 })
   }
 
   try {
-    // 1. Get Facebook pages
-    const pagesData = await graphGet('/me/accounts', token, {
-      fields: 'id,name,fan_count,followers_count,access_token',
+    // Get page info
+    const pageData = await graphGet(`/${PAGE_ID}`, token, {
+      fields: 'id,name,fan_count,followers_count',
     })
 
-    if (pagesData.error) {
-      return NextResponse.json({ error: pagesData.error.message }, { status: 400 })
+    if (pageData.error) {
+      return NextResponse.json({ error: pageData.error.message }, { status: 400 })
     }
 
-    const rawPages: Array<{
-      id: string
-      name: string
-      fan_count?: number
-      followers_count?: number
-      access_token: string
-    }> = pagesData.data || []
+    // Get recent posts
+    const postsData = await graphGet(`/${PAGE_ID}/posts`, token, {
+      fields: 'message,created_time,likes.summary(true),comments.summary(true)',
+      limit: '5',
+    })
 
-    const pages = await Promise.all(
-      rawPages.slice(0, 1).map(async (page) => {
-        // 2. Get recent posts for the page
-        const postsData = await graphGet(`/${page.id}/posts`, page.access_token, {
-          fields: 'message,created_time,likes.summary(true),comments.summary(true)',
-          limit: '5',
-        })
+    const posts = (postsData.data || []).map((p: {
+      message?: string
+      created_time: string
+      likes?: { summary?: { total_count?: number } }
+      comments?: { summary?: { total_count?: number } }
+    }) => ({
+      message: p.message || '',
+      created_time: p.created_time,
+      likes: p.likes?.summary?.total_count ?? 0,
+      comments: p.comments?.summary?.total_count ?? 0,
+    }))
 
-        const posts = (postsData.data || []).map((p: {
-          id: string
-          message?: string
-          created_time: string
-          likes?: { summary?: { total_count?: number } }
-          comments?: { summary?: { total_count?: number } }
-        }) => ({
-          message: p.message || '',
-          created_time: p.created_time,
-          likes: p.likes?.summary?.total_count ?? 0,
-          comments: p.comments?.summary?.total_count ?? 0,
-        }))
+    const page = {
+      id: PAGE_ID,
+      name: pageData.name || 'Black Creek Youth Initiative',
+      followers_count: String(pageData.followers_count ?? 0),
+      fan_count: String(pageData.fan_count ?? 0),
+      pageUrl: `https://www.facebook.com/profile.php?id=${PAGE_ID}`,
+      posts,
+    }
 
-        return {
-          id: page.id,
-          name: page.name,
-          followers_count: String(page.followers_count ?? 0),
-          fan_count: String(page.fan_count ?? 0),
-          pageUrl: `https://www.facebook.com/${page.id}`,
-          posts,
-        }
-      })
-    )
-
-    // 3. Get Instagram business account linked to first page
+    // Get Instagram business account linked to the page
     let instagram = null
-    if (rawPages.length > 0) {
-      const firstPage = rawPages[0]
-      const igLinkData = await graphGet(`/${firstPage.id}`, firstPage.access_token, {
-        fields: 'instagram_business_account',
+    const igLinkData = await graphGet(`/${PAGE_ID}`, token, {
+      fields: 'instagram_business_account',
+    })
+
+    const igId = igLinkData?.instagram_business_account?.id
+    if (igId) {
+      const igProfile = await graphGet(`/${igId}`, token, {
+        fields: 'username,followers_count,media_count,profile_picture_url',
       })
 
-      const igId = igLinkData?.instagram_business_account?.id
-      if (igId) {
-        // 4. Get Instagram profile
-        const igProfile = await graphGet(`/${igId}`, firstPage.access_token, {
-          fields: 'username,followers_count,media_count,profile_picture_url',
-        })
+      const igMediaData = await graphGet(`/${igId}/media`, token, {
+        fields: 'id,caption,timestamp,media_type,media_url,thumbnail_url',
+        limit: '5',
+      })
 
-        // 5. Get Instagram media
-        const igMediaData = await graphGet(`/${igId}/media`, firstPage.access_token, {
-          fields: 'id,caption,timestamp,media_type,media_url,thumbnail_url',
-          limit: '5',
-        })
+      const media = (igMediaData.data || []).map((m: {
+        id: string
+        caption?: string
+        timestamp: string
+        media_type: string
+        media_url?: string
+        thumbnail_url?: string
+      }) => ({
+        id: m.id,
+        caption: m.caption || '',
+        timestamp: m.timestamp,
+        media_type: m.media_type,
+        media_url: m.media_url || '',
+        thumbnail_url: m.thumbnail_url || m.media_url || '',
+        mediaUrl: `https://www.instagram.com/p/${m.id}/`,
+      }))
 
-        const media = (igMediaData.data || []).map((m: {
-          id: string
-          caption?: string
-          timestamp: string
-          media_type: string
-          media_url?: string
-          thumbnail_url?: string
-        }) => ({
-          id: m.id,
-          caption: m.caption || '',
-          timestamp: m.timestamp,
-          media_type: m.media_type,
-          media_url: m.media_url || '',
-          thumbnail_url: m.thumbnail_url || m.media_url || '',
-          mediaUrl: `https://www.instagram.com/p/${m.id}/`,
-        }))
-
-        instagram = {
-          username: igProfile.username || '',
-          followers_count: String(igProfile.followers_count ?? 0),
-          media_count: String(igProfile.media_count ?? 0),
-          profile_picture_url: igProfile.profile_picture_url || '',
-          profileUrl: igProfile.username ? `https://www.instagram.com/${igProfile.username}/` : '',
-          media,
-        }
+      instagram = {
+        username: igProfile.username || IG_USERNAME,
+        followers_count: String(igProfile.followers_count ?? 0),
+        media_count: String(igProfile.media_count ?? 0),
+        profile_picture_url: igProfile.profile_picture_url || '',
+        profileUrl: `https://www.instagram.com/${IG_USERNAME}/`,
+        media,
       }
     }
 
     return NextResponse.json({
-      facebook: { pages },
+      facebook: { pages: [page] },
       instagram,
     })
   } catch (e) {
