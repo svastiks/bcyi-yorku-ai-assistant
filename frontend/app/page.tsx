@@ -707,20 +707,6 @@ export default function ChatPage() {
                 </button>
               ))}
               <button
-                onClick={() => setSelectedType("social-reach")}
-                className={cn(
-                  "w-full text-left px-3 py-2 rounded-lg text-sm transition-colors flex items-center gap-2",
-                  selectedType === "social-reach"
-                    ? "bg-secondary text-secondary-foreground"
-                    : "hover:bg-accent text-foreground",
-                )}
-              >
-                <span className="inline-flex h-5 w-5 items-center justify-center rounded-md bg-background/40">
-                  <BarChart2 className="w-4 h-4" />
-                </span>
-                Social Media Stats
-              </button>
-              <button
                 onClick={() => setSelectedType("general")}
                 className={cn(
                   "w-full text-left px-3 py-2 rounded-lg text-sm transition-colors flex items-center gap-2",
