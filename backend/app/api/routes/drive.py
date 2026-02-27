@@ -12,8 +12,11 @@ import os
 
 router = APIRouter()
 
-CREDENTIALS_FILE = "drive_credentials.json"
-STATE_FILE = "drive_auth_state.json"
+# Store credential/state files alongside this module so the paths are stable
+# regardless of the server's current working directory.
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+CREDENTIALS_FILE = os.path.join(BASE_DIR, "drive_credentials.json")
+STATE_FILE = os.path.join(BASE_DIR, "drive_auth_state.json")
 
 
 def get_oauth_credentials():
