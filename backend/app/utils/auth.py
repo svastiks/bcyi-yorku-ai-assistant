@@ -36,20 +36,41 @@ class GoogleAuthHandler:
         return flow
     
     @staticmethod
-    def get_authorization_url() -> tuple[str, str]:
-        """Get authorization URL for OAuth flow"""
+    def get_authorization_url() -> tuple[str, str, str]:
+        """
+        Get authorization URL for OAuth flow.
+
+        Returns:
+            Tuple of (authorization_url, state, code_verifier)
+        """
         flow = GoogleAuthHandler.create_flow()
         authorization_url, state = flow.authorization_url(
             access_type='offline',
             include_granted_scopes='true',
             prompt='consent'
         )
-        return authorization_url, state
+        # google-auth-oauthlib now enables PKCE by default and generates a
+        # code_verifier internally. We must persist this value across the
+        # redirect so that the token exchange can succeed.
+        code_verifier = getattr(flow, "code_verifier", "")
+        return authorization_url, state, code_verifier
     
     @staticmethod
-    def exchange_code_for_token(code: str, state: str) -> Dict:
-        """Exchange authorization code for access token"""
+    def exchange_code_for_token(code: str, code_verifier: Optional[str] = None) -> Dict:
+        """
+        Exchange authorization code for access token.
+
+        Args:
+            code: Authorization code returned from Google.
+            code_verifier: PKCE code verifier that was used when generating
+                the authorization URL. If provided, it will be attached to
+                the flow before exchanging the code for tokens.
+        """
         flow = GoogleAuthHandler.create_flow()
+        if code_verifier:
+            # Attach the original PKCE verifier so Google can validate the
+            # code challenge that was sent during the authorization step.
+            setattr(flow, "code_verifier", code_verifier)
         flow.fetch_token(code=code)
         
         credentials = flow.credentials

@@ -46,9 +46,11 @@ async def get_auth_url():
     """Return OAuth URL for user to connect their Google Drive."""
     if not settings.google_client_id or not settings.google_client_secret:
         raise HTTPException(status_code=503, detail="OAuth not configured (GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET)")
-    url, state = GoogleAuthHandler.get_authorization_url()
+    url, state, code_verifier = GoogleAuthHandler.get_authorization_url()
     with open(STATE_FILE, "w") as f:
-        json.dump({"state": state}, f)
+        # Persist both state and PKCE code_verifier so the callback can
+        # successfully exchange the authorization code for tokens.
+        json.dump({"state": state, "code_verifier": code_verifier}, f)
     return {"url": url, "state": state}
 
 
@@ -60,9 +62,14 @@ async def auth_callback(code: Optional[str] = None, state: Optional[str] = None)
     try:
         with open(STATE_FILE, "r") as f:
             stored = json.load(f)
-        if stored.get("state") != state:
+        stored_state = stored.get("state")
+        code_verifier = stored.get("code_verifier")
+        if stored_state != state:
             return RedirectResponse(url=f"{settings.frontend_url}?drive_error=invalid_state")
-        token_data = GoogleAuthHandler.exchange_code_for_token(code, state)
+        # Pass the original PKCE code_verifier so Google can validate the
+        # authorization code and avoid the "invalid_grant: Missing code verifier"
+        # error on the token endpoint.
+        token_data = GoogleAuthHandler.exchange_code_for_token(code, code_verifier=code_verifier)
         with open(CREDENTIALS_FILE, "w") as f:
             json.dump({"token_data": token_data}, f)
         if os.path.exists(STATE_FILE):
