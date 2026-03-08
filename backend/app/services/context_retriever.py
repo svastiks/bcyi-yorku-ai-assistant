@@ -3,6 +3,7 @@ from app.services.google_drive import GoogleDriveService
 from app.models.file_metadata import DriveFile
 from typing import List, Dict, Optional, Tuple
 from datetime import datetime, timedelta
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import re
 
 
@@ -136,6 +137,40 @@ class ContextRetriever:
         scored_files.sort(key=lambda x: x[1], reverse=True)
         return scored_files[:max_results]
 
+    def _fetch_contents_parallel(
+        self,
+        file_score_pairs: List[Tuple[DriveFile, float]],
+        max_content_len: int = 5000,
+        max_workers: int = 3,
+        per_file_timeout: int = 20,
+    ) -> List[Dict]:
+        """Fetch file content for multiple (file, score) pairs in parallel. Low concurrency to avoid Drive SSL/rate limits."""
+        if not file_score_pairs:
+            return []
+        results = []
+        with ThreadPoolExecutor(max_workers=max_workers) as ex:
+            future_to_pair = {
+                ex.submit(self.drive_service.get_file_content, f.id): (f, score)
+                for f, score in file_score_pairs
+            }
+            for future in as_completed(future_to_pair):
+                f, score = future_to_pair[future]
+                try:
+                    content = future.result(timeout=per_file_timeout)
+                    if content:
+                        if len(content) > max_content_len:
+                            content = content[:max_content_len] + "\n...(truncated)"
+                        results.append({
+                            "name": f.name,
+                            "folder": f.folder_path or "Drive",
+                            "content": content,
+                            "relevance_score": score,
+                            "modified_time": f.modified_time.isoformat() if f.modified_time else None,
+                        })
+                except Exception:
+                    pass  # timeout or SSL/network; skip this file
+        return results
+
     def get_relevant_files(
         self,
         content_type: str,
@@ -157,6 +192,7 @@ class ContextRetriever:
         seen_ids = set()
 
         # 1) Explicit filename match: user said "use test_event_summary" etc.
+        step1_pairs: List[Tuple[DriveFile, float]] = []
         for token in self._filename_like_tokens(user_query):
             by_name = self.drive_service.list_files_by_name(token)
             if not by_name and "_" in token:
@@ -165,23 +201,21 @@ class ContextRetriever:
                 if file.id in seen_ids or file.mime_type == "application/vnd.google-apps.folder":
                     continue
                 seen_ids.add(file.id)
-                content = self.drive_service.get_file_content(file.id)
-                if content:
-                    if len(content) > 5000:
-                        content = content[:5000] + "\n...(truncated)"
-                    relevant_files.append({
-                        'name': file.name,
-                        'folder': file.folder_path or 'Drive',
-                        'content': content,
-                        'relevance_score': 100.0,
-                        'modified_time': file.modified_time.isoformat() if file.modified_time else None
-                    })
-                    if len(relevant_files) >= max_files:
-                        return relevant_files
+                step1_pairs.append((file, 100.0))
+                if len(step1_pairs) >= max_files:
+                    break
+            if len(step1_pairs) >= max_files:
+                break
+        if step1_pairs:
+            batch = self._fetch_contents_parallel(step1_pairs)
+            relevant_files.extend(batch)
+            if len(relevant_files) >= max_files:
+                return relevant_files[:max_files]
 
         # 2) Content search: fullText for terms like "2pm", "5pm", "summary", "time"
+        step2_pairs: List[Tuple[DriveFile, float]] = []
         for term in self._content_search_terms(user_query, keywords, max_terms=5):
-            if len(relevant_files) >= max_files:
+            if len(relevant_files) + len(step2_pairs) >= max_files:
                 break
             try:
                 by_content = self.drive_service.list_files_by_content(term, page_size=10)
@@ -189,44 +223,35 @@ class ContextRetriever:
                     if file.id in seen_ids or file.mime_type == "application/vnd.google-apps.folder":
                         continue
                     seen_ids.add(file.id)
-                    content = self.drive_service.get_file_content(file.id)
-                    if content:
-                        if len(content) > 5000:
-                            content = content[:5000] + "\n...(truncated)"
-                        relevant_files.append({
-                            'name': file.name,
-                            'folder': file.folder_path or 'Drive',
-                            'content': content,
-                            'relevance_score': 85.0,
-                            'modified_time': file.modified_time.isoformat() if file.modified_time else None
-                        })
-                        if len(relevant_files) >= max_files:
-                            break
+                    step2_pairs.append((file, 85.0))
+                    if len(relevant_files) + len(step2_pairs) >= max_files:
+                        break
             except Exception:
                 continue
+        if step2_pairs:
+            need = max_files - len(relevant_files)
+            batch = self._fetch_contents_parallel(step2_pairs[:need])
+            relevant_files.extend(batch)
+            if len(relevant_files) >= max_files:
+                return relevant_files[:max_files]
 
         # 3) Keyword search over root + all immediate subfolders (by name)
         all_files = self.drive_service.list_root_and_subfolder_files()
         scored = self.search_files_by_keywords(keywords=keywords, files=all_files, max_results=max_files)
+        step3_pairs: List[Tuple[DriveFile, float]] = []
         for file, score in scored:
             if file.id in seen_ids:
                 continue
             seen_ids.add(file.id)
-            content = self.drive_service.get_file_content(file.id)
-            if content:
-                if len(content) > 5000:
-                    content = content[:5000] + "\n...(truncated)"
-                relevant_files.append({
-                    'name': file.name,
-                    'folder': file.folder_path or 'Drive',
-                    'content': content,
-                    'relevance_score': score,
-                    'modified_time': file.modified_time.isoformat() if file.modified_time else None
-                })
-            if len(relevant_files) >= max_files:
+            step3_pairs.append((file, score))
+            if len(relevant_files) + len(step3_pairs) >= max_files:
                 break
+        if step3_pairs:
+            need = max_files - len(relevant_files)
+            batch = self._fetch_contents_parallel(step3_pairs[:need])
+            relevant_files.extend(batch)
 
-        return relevant_files
+        return relevant_files[:max_files]
     
     def cache_file_metadata(self, files: List[DriveFile]):
         """
