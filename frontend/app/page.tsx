@@ -40,6 +40,8 @@ type ChatSession = {
   createdAt: Date;
   updatedAt: Date;
   backendChatId?: string | null;
+  /** Summary file used for context in this chat; kept until user deselects or picks another */
+  selectedSummary?: SummaryItem | null;
 };
 
 type ContentType =
@@ -184,9 +186,6 @@ export default function ChatPage() {
   const [selectedType, setSelectedType] = useState<ContentType>("general");
   const [hydrated, setHydrated] = useState(false);
   const [summaries, setSummaries] = useState<SummaryItem[]>([]);
-  const [selectedSummary, setSelectedSummary] = useState<SummaryItem | null>(
-    null,
-  );
   const [promptModalOpen, setPromptModalOpen] = useState(false);
   const [loadingSummaries, setLoadingSummaries] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -234,6 +233,16 @@ export default function ChatPage() {
   const src = getIconPath("aorta-heart", isDark);
 
   const currentSession = chatSessions.find((s) => s.id === currentSessionId);
+  /** Selected summary is stored on the current chat session so follow-ups use the same context */
+  const selectedSummary = currentSession?.selectedSummary ?? null;
+  const setSelectedSummaryForSession = (summary: SummaryItem | null) => {
+    if (!currentSessionId) return;
+    setChatSessions((prev) =>
+      prev.map((s) =>
+        s.id === currentSessionId ? { ...s, selectedSummary: summary } : s
+      )
+    );
+  };
 
   const sendMessageToApi = async (
     messageContent: string,
@@ -319,6 +328,7 @@ export default function ChatPage() {
       selectedType,
       currentSession?.backendChatId ?? null,
       messages.slice(0, -1),
+      currentSession?.selectedSummary?.id,
     )
       .catch(() => {
         setMessages((prev) => [
@@ -429,6 +439,7 @@ export default function ChatPage() {
       contentType: "general",
       createdAt: new Date(),
       updatedAt: new Date(),
+      selectedSummary: null,
     };
     setChatSessions((prev) => [newSession, ...prev]);
     setCurrentSessionId(newSession.id);
@@ -467,6 +478,7 @@ export default function ChatPage() {
         contentType: selectedType,
         createdAt: new Date(),
         updatedAt: new Date(),
+        selectedSummary: null,
       };
       setChatSessions((prev) => [newSession, ...prev]);
       setCurrentSessionId(newSession.id);
@@ -482,7 +494,7 @@ export default function ChatPage() {
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
     setIsLoading(true);
-    const fileIdToSend = selectedSummary?.id;
+    const fileIdToSend = currentSession?.selectedSummary?.id;
 
     try {
       await sendMessageToApi(
@@ -506,7 +518,6 @@ export default function ChatPage() {
       ]);
     } finally {
       setIsLoading(false);
-      setSelectedSummary(null);
     }
   };
 
@@ -1343,8 +1354,9 @@ export default function ChatPage() {
                             onClick={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
-                              setSelectedSummary(s);
-                              setTimeout(() => setPromptModalOpen(true), 10);
+                              const next = selectedSummary?.id === s.id ? null : s;
+                              setSelectedSummaryForSession(next);
+                              if (next) setTimeout(() => setPromptModalOpen(true), 10);
                             }}
                             className={cn(
                               "rounded-full px-3 py-1.5 text-sm border transition-colors",
