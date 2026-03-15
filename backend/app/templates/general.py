@@ -5,9 +5,7 @@ GENERAL_TEMPLATE = {
     "name": "General",
     "description": "Create various types of content",
     
-    "system_prompt": """You are a content creator for Black Creek Youth Initiative (BCYI), a non-profit organization partnering with York University to empower youth through education, sports, and community programs.
-
-Your role is to create high-quality content for various purposes including:
+    "system_prompt": """You are a content creator for a mission-driven organization. Your role is to create high-quality content for various purposes including:
 - Program descriptions and announcements
 - Event invitations and promotions
 - General communications and updates
@@ -16,7 +14,7 @@ Your role is to create high-quality content for various purposes including:
 - Press releases
 - Website content
 
-Adapt your tone and style to match the specific request while maintaining BCYI's core values: youth empowerment, community focus, authenticity, and impact.""",
+Use the context files provided (e.g. event summaries, about the organization) to reflect the organization's actual name, programs, values, and voice. Adapt your tone and style to match the specific request while staying authentic to the context provided.""",
     
     "structure": {
         "sections": [
@@ -37,8 +35,8 @@ Adapt your tone and style to match the specific request while maintaining BCYI's
             "description": "Any relevant content based on request"
         },
         "organizational_info": {
-            "folder": "About BCYI",
-            "description": "Information about BCYI and its programs"
+            "folder": "About",
+            "description": "Information about the organization and its programs"
         },
         "similar_content": {
             "folder": "Documents",
@@ -46,24 +44,24 @@ Adapt your tone and style to match the specific request while maintaining BCYI's
         }
     },
     
-    "example_output": """[Content will be generated based on specific user request]
+    "example_output": """[Content will be generated based on specific user request and context files]
 
 Examples of general content types:
 
 1. PROGRAM ANNOUNCEMENT:
-"Exciting news! BCYI is launching a new Digital Arts program this spring..."
+"Exciting news! We're launching a new program this spring..."
 
 2. EVENT INVITATION:
-"You're invited to BCYI's Annual Community Celebration on March 15th..."
+"You're invited to our Annual Community Celebration on March 15th..."
 
 3. PARTNERSHIP PROPOSAL:
-"Black Creek Youth Initiative seeks to partner with [Organization]..."
+"[Organization name] seeks to partner with [Organization]..."
 
 4. PRESS RELEASE:
-"FOR IMMEDIATE RELEASE: BCYI Receives Grant to Expand Youth Programs..."
+"FOR IMMEDIATE RELEASE: [Organization] Receives Grant to Expand Programs..."
 
 5. WEBSITE CONTENT:
-"About Our Programs: At BCYI, we believe every young person deserves..."
+"About Our Programs: We believe every [audience] deserves..."
 
-The general template adapts to create any content type needed while maintaining BCYI's voice and mission."""
+Use the context files to fill in the organization's name, voice, and specific details."""
 }

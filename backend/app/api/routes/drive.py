@@ -1,6 +1,6 @@
 """Google Drive management API endpoints"""
 from fastapi import APIRouter, HTTPException, Query
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, Response
 from app.services.google_drive import GoogleDriveService
 from app.services.file_sorter import FileSorter
 from app.utils.auth import GoogleAuthHandler
@@ -219,3 +219,86 @@ async def get_sorting_rules():
         "rules": SORTING_RULES,
         "description": "Hardcoded rules for organizing files into folders"
     }
+
+
+# Max size for images listed for attachment (5MB) - avoids huge files for AI vision
+MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024
+
+
+@router.get("/images")
+async def list_drive_images(limit: int = 200, max_size_mb: Optional[float] = None):
+    """List image files from Google Drive, sorted by modified time (newest first)."""
+    try:
+        credentials = get_drive_credentials()
+        drive_service = GoogleDriveService(credentials)
+        max_bytes = int(max_size_mb * 1024 * 1024) if max_size_mb is not None else MAX_IMAGE_SIZE_BYTES
+        images = drive_service.list_images(page_size=min(limit, 200), max_size_bytes=max_bytes)
+        return {
+            "images": [
+                {
+                    "id": f.id,
+                    "name": f.name,
+                    "mime_type": f.mime_type,
+                    "created_time": f.created_time.isoformat() if f.created_time else None,
+                    "modified_time": f.modified_time.isoformat() if f.modified_time else None,
+                    "size": f.size,
+                }
+                for f in images
+            ],
+            "count": len(images),
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to list images: {str(e)}")
+
+
+@router.get("/images/latest")
+async def get_latest_drive_image():
+    """Get the most recently modified image in Google Drive (by modifiedTime)."""
+    try:
+        credentials = get_drive_credentials()
+        drive_service = GoogleDriveService(credentials)
+        images = drive_service.list_images(page_size=1, max_size_bytes=MAX_IMAGE_SIZE_BYTES)
+        if not images:
+            return {"image": None, "message": "No images found in Drive"}
+        img = images[0]
+        return {
+            "image": {
+                "id": img.id,
+                "name": img.name,
+                "mime_type": img.mime_type,
+                "modified_time": img.modified_time.isoformat() if img.modified_time else None,
+                "size": img.size,
+            }
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get latest image: {str(e)}")
+
+
+@router.get("/images/{file_id}/preview")
+async def get_drive_image_preview(file_id: str):
+    """Return image bytes for preview (e.g. in Drive picker). Uses OAuth to fetch from Drive.
+    Client should pass ?mtime=<modified_time> so browser cache invalidates when file changes."""
+    try:
+        credentials = get_drive_credentials()
+        drive_service = GoogleDriveService(credentials)
+        raw = drive_service.get_file_bytes(file_id)
+        if not raw:
+            raise HTTPException(status_code=404, detail="Image not found or not readable")
+        mime = drive_service.get_file_mime_type(file_id) or "image/jpeg"
+        if not mime.startswith("image/"):
+            mime = "image/jpeg"
+        return Response(
+            content=raw,
+            media_type=mime,
+            headers={
+                "Cache-Control": "private, max-age=86400",  # 24h; URL should include ?mtime= for invalidation
+            },
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to load preview: {str(e)}")

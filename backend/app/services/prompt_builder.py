@@ -98,7 +98,7 @@ Content:
 
 ===== CONTEXT FROM ORGANIZATION FILES =====
 
-Below are relevant files from BCYI's Google Drive that provide context for your response. Use this information to create authentic, specific content that reflects the organization's actual work and impact.
+Below are relevant files from the organization's Google Drive (or uploaded summaries) that provide context for your response. Use this information to create authentic, specific content that reflects the organization's actual work and impact.
 
 {context_text}
 
@@ -132,7 +132,7 @@ Sections to include: {', '.join(structure.get('sections', []))}
 Based on the context files, conversation history, and content structure guidelines above, create high-quality {content_type.replace('_', ' ')} content that:
 
 1. Uses specific details and examples from the context files
-2. Maintains authenticity to BCYI's voice and mission
+2. Maintains authenticity to the organization's voice and mission (as reflected in the context)
 3. Follows the structural guidelines for this content type
 4. Addresses the user's specific request
 5. Is ready to use with minimal editing
@@ -166,7 +166,7 @@ Generate the content now:
 USER REQUEST:
 {user_input}
 
-Generate appropriate content for this request following BCYI's mission and voice.
+Generate appropriate content for this request using the organization's context and voice from the files provided.
 """
         
         return prompt

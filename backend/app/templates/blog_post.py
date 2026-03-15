@@ -5,26 +5,26 @@ BLOG_POST_TEMPLATE = {
     "name": "Blog Post",
     "description": "Write impactful stories",
     
-    "system_prompt": """You are a thoughtful writer and communicator for Black Creek Youth Initiative (BCYI), a non-profit organization partnering with York University to empower youth through education, sports, and community programs.
+    "system_prompt": """You are a thoughtful writer and communicator for a mission-driven organization.
 
-GOAL: Inform, reflect, and position BCYI as a thoughtful and impact-driven organization.
+GOAL: Inform, reflect, and position the organization as thoughtful and impact-driven. Use the context files (e.g. event summaries, impact stories) to reflect the organization's actual name, programs, and voice.
 
 INSTRUCTIONS:
 - When reference blog posts are provided in context, mirror their pacing and depth — match the style without copying phrasing or structure exactly
 - Blend narrative moments with insight or reflection; do not write purely informational or purely emotional content
 - Maintain clarity and accessibility — avoid academic jargon, write for a community, partner, and donor audience
-- Center real people, real outcomes, and specific program details
-- Each section should earn its place: no filler, no generic statements about youth empowerment without specifics
+- Center real people, real outcomes, and specific program details from the context
+- Each section should earn its place: no filler, no generic statements without specifics
 
 OUTPUT REQUIREMENTS:
 - Title (clear, specific, not generic)
 - Introduction with a clear hook that draws the reader in
 - 2–4 short body sections with subheadings
-- Closing paragraph that reinforces BCYI's purpose and leaves the reader with something to carry
+- Closing paragraph that reinforces the organization's purpose and leaves the reader with something to carry
 - Length: 600–900 words
 
 VOICE:
-Act like a mission-driven non-profit communicator. Balance empathy and evidence. Write as someone who genuinely knows this community — not an outside observer describing it.""",
+Act like a mission-driven non-profit communicator. Balance empathy and evidence. Write as someone who genuinely knows this community — not an outside observer describing it. Use context to get names, programs, and details right.""",
 
     "structure": {
         "sections": [
@@ -59,59 +59,40 @@ Act like a mission-driven non-profit communicator. Balance empathy and evidence.
         }
     },
     
-    "example_output": """# From the Court to the Classroom: How Basketball Changed Everything
+    "example_output": """# [Use context for a specific, compelling title]
 
-*A story about community, mentorship, and finding your path*
+*[Subtitle that sets the tone]*
 
-Three years ago, Marcus walked into the BCYI gymnasium for the first time. At 14, he was struggling in school, disconnected from his community, and unsure about his future. Today, at 17, he's a youth mentor, a straight-A student, and heading to York University on a scholarship.
+[Use context for opening: a person, moment, or scene that hooks the reader. E.g. "Three years ago, [Name] walked into [program/place] for the first time..."]
 
-His journey wasn't just about basketball—it was about finding a community that believed in him.
+## [Section heading]
 
-## The Beginning
+[Use context for story and quotes. Mirror the pacing of reference blog posts if provided.]
 
-"I only came because my mom made me," Marcus admits with a laugh. "I thought it would be boring. I was wrong."
+## [Section heading]
 
-That first day at BCYI's after-school basketball program, Marcus met Coach James, a York University student volunteer who would become his mentor. But more importantly, he found a space where showing up mattered, where effort was celebrated, and where someone noticed when you weren't there.
+[Use context for program details, structure, and impact. Include specific elements from context.]
 
-## More Than a Game
+## [Section heading]
 
-BCYI's programs are deliberately designed to extend beyond the activity itself. Basketball practice includes:
-- Academic check-ins and homework support
-- Life skills workshops on communication and goal-setting
-- Mentorship from university student volunteers
-- Leadership opportunities for older youth
+[Use context for a turning point or outcome—grades, confidence, leadership, etc.]
 
-For Marcus, these elements combined to create something transformative. "Coach James would always ask about school first, basketball second," he explains. "It made me realize that people cared about my whole future, not just whether I could make a shot."
+## [Section heading]
 
-## The Turning Point
+[Use context for how the person gives back or what they do now.]
 
-During Marcus's second year in the program, his grades were slipping. Instead of criticism, he found support. BCYI connected him with tutoring, and Coach James helped him create a study schedule that worked with basketball practice.
+## [Section heading]
 
-"That's when I learned that struggling doesn't mean failing," Marcus says. "It means you need a better game plan."
+[Use context to tie the story to the broader mission and community.]
 
-His grades improved. His confidence grew. And something unexpected happened—Marcus started mentoring younger kids in the program.
+## [Closing section]
 
-## Paying It Forward
-
-Now a senior youth mentor at BCYI, Marcus spends three afternoons a week helping younger students with homework and running basketball drills. He's living proof of the program's impact and the power of youth leadership.
-
-"These kids remind me of me," he shares. "I want them to know what's possible. I want to be their Coach James."
-
-## The Bigger Picture
-
-Marcus's story is one of many at BCYI, but it illustrates a crucial truth: youth need more than programs—they need community, consistency, and people who see their potential.
-
-The partnership between BCYI and York University creates a unique ecosystem where university students mentor community youth, who then become mentors themselves. It's a cycle of empowerment that ripples through the Black Creek community.
-
-## Looking Ahead
-
-This fall, Marcus will begin his studies at York University, majoring in Education. His goal? To become a teacher and coach, bringing the lessons he learned at BCYI to even more young people.
-
-"BCYI gave me a second chance," Marcus reflects. "Now I want to spend my life giving that to others."
+[Use context for next steps, quote, or call to action.]
 
 ---
 
-*Stories like Marcus's are possible because of community support. Learn more about how you can get involved at Black Creek Youth Initiative.*
+*Stories like these are possible because of community support. Learn more about how you can get involved at [use context for organization name].*
 
-**Tags:** Youth Empowerment, Mentorship, Basketball, Education, Community Impact"""
+**Tags:** [Use context for relevant tags]
+"""
 }

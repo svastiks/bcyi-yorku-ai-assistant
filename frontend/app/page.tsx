@@ -17,19 +17,48 @@ import {
   Copy,
   Check,
   BarChart2,
+  Paperclip,
+  ImagePlus,
+  HardDrive,
+  X,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { PromptVariablesModal } from "@/components/prompt-variables-modal";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Switch } from "@/components/ui/switch";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useTheme } from "next-themes";
 import { getIconPath } from "@/lib/icon-utils";
+
+type MessageAttachmentDisplay =
+  | { type: "local"; preview: string }
+  | { type: "drive"; id: string; name: string; modified_time?: string | null };
 
 type Message = {
   id: string;
   role: "user" | "assistant";
   content: string;
   timestamp: Date;
+  /** Attachments shown with this message (e.g. image we asked to describe) */
+  attachments?: MessageAttachmentDisplay[];
 };
 
 type ChatSession = {
@@ -108,6 +137,21 @@ type MetaData = {
     media: InstagramMedia[];
   } | null;
 };
+
+type LocalAttachment = { type: "local"; file: File; preview: string };
+type DriveAttachment = {
+  type: "drive";
+  id: string;
+  name: string;
+  modified_time?: string | null;
+};
+type AttachedImage = LocalAttachment | DriveAttachment;
+
+const MAX_ATTACHMENTS = 2;
+const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024; // 5MB per image
+
+const DRIVE_IMAGES_LIST_CACHE_KEY = "bcyi_drive_images_list";
+const DRIVE_IMAGES_LIST_CACHE_TTL_MS = 2 * 60 * 1000; // 2 minutes
 
 const contentTypes = [
   { value: "newsletter", label: "Newsletter" },
@@ -200,6 +244,26 @@ export default function ChatPage() {
   const [activeSocialPlatform, setActiveSocialPlatform] = useState<
     "youtube" | null
   >("youtube");
+  const [attachments, setAttachments] = useState<AttachedImage[]>([]);
+  const [driveImagesOpen, setDriveImagesOpen] = useState(false);
+  const [driveImages, setDriveImages] = useState<
+    Array<{
+      id: string;
+      name: string;
+      mime_type: string;
+      modified_time: string | null;
+      size: number | null;
+    }>
+  >([]);
+  const [driveImagesLoading, setDriveImagesLoading] = useState(false);
+  const [drivePreviewFailed, setDrivePreviewFailed] = useState<Set<string>>(
+    new Set(),
+  );
+  const [driveChipPreviewFailed, setDriveChipPreviewFailed] = useState<
+    Set<string>
+  >(new Set());
+  const [searchDriveContext, setSearchDriveContext] = useState(true);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const messageRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -239,8 +303,8 @@ export default function ChatPage() {
     if (!currentSessionId) return;
     setChatSessions((prev) =>
       prev.map((s) =>
-        s.id === currentSessionId ? { ...s, selectedSummary: summary } : s
-      )
+        s.id === currentSessionId ? { ...s, selectedSummary: summary } : s,
+      ),
     );
   };
 
@@ -250,6 +314,9 @@ export default function ChatPage() {
     backendChatId: string | null,
     history: Message[],
     summaryFileId?: string,
+    imageDriveIds?: string[],
+    imageInline?: Array<{ mime_type: string; data: string }>,
+    includeDriveContext?: boolean,
   ) => {
     const res = await fetch("/api/chat", {
       method: "POST",
@@ -260,6 +327,9 @@ export default function ChatPage() {
         history,
         chatId: backendChatId,
         summaryFileId,
+        imageDriveIds: imageDriveIds?.length ? imageDriveIds : undefined,
+        imageInline: imageInline?.length ? imageInline : undefined,
+        includeDriveContext: includeDriveContext ?? searchDriveContext,
       }),
     });
     if (!res.ok) throw new Error("Failed to fetch response");
@@ -277,7 +347,7 @@ export default function ChatPage() {
       role: "assistant",
       content:
         data.message ||
-        "Hello! I'm your BCYI x YorkU AI assistant. I can help you create newsletters, blog posts, donor emails, social media captions, and more!",
+        "Hello! I'm your AI content assistant. I can help you create newsletters, blog posts, donor emails, social media captions, and more!",
       timestamp: new Date(),
     };
     setMessages((prev) => [...prev, assistantMessage]);
@@ -329,6 +399,9 @@ export default function ChatPage() {
       currentSession?.backendChatId ?? null,
       messages.slice(0, -1),
       currentSession?.selectedSummary?.id,
+      undefined,
+      undefined,
+      searchDriveContext,
     )
       .catch(() => {
         setMessages((prev) => [
@@ -374,6 +447,109 @@ export default function ChatPage() {
       window.history.replaceState({}, "", window.location.pathname);
     }
   }, []);
+
+  useEffect(() => {
+    if (!driveImagesOpen || !driveConnected) return;
+    setDrivePreviewFailed(new Set());
+
+    const cached = (() => {
+      try {
+        const raw = sessionStorage.getItem(DRIVE_IMAGES_LIST_CACHE_KEY);
+        if (!raw) return null;
+        const { images, fetchedAt } = JSON.parse(raw);
+        if (
+          !Array.isArray(images) ||
+          Date.now() - (fetchedAt || 0) > DRIVE_IMAGES_LIST_CACHE_TTL_MS
+        )
+          return null;
+        return images as Array<{
+          id: string;
+          name: string;
+          mime_type: string;
+          modified_time: string | null;
+          size: number | null;
+        }>;
+      } catch {
+        return null;
+      }
+    })();
+
+    if (cached) {
+      setDriveImages(cached);
+      setDriveImagesLoading(false);
+    } else {
+      setDriveImagesLoading(true);
+    }
+
+    // Always refetch in background so new uploads appear even if TTL hasn't expired
+    fetch("/api/drive/images?limit=100")
+      .then((r) => (r.ok ? r.json() : { images: [] }))
+      .then((d) => {
+        const images = d.images || [];
+        setDriveImages(images);
+        setDriveImagesLoading(false);
+        try {
+          sessionStorage.setItem(
+            DRIVE_IMAGES_LIST_CACHE_KEY,
+            JSON.stringify({ images, fetchedAt: Date.now() }),
+          );
+        } catch {
+          // ignore quota or disabled storage
+        }
+      })
+      .catch(() => {
+        if (!cached) setDriveImages([]);
+        setDriveImagesLoading(false);
+      });
+  }, [driveImagesOpen, driveConnected]);
+
+  const onDrivePreviewError = (id: string) => {
+    setDrivePreviewFailed((prev) => new Set(prev).add(id));
+  };
+
+  const onLocalFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files?.length) return;
+    const next: AttachedImage[] = [...attachments];
+    for (let i = 0; i < files.length && next.length < MAX_ATTACHMENTS; i++) {
+      const file = files[i];
+      if (!file.type.startsWith("image/")) continue;
+      if (file.size > MAX_IMAGE_SIZE_BYTES) continue;
+      const preview = URL.createObjectURL(file);
+      next.push({ type: "local", file, preview });
+    }
+    setAttachments(next);
+    e.target.value = "";
+  };
+
+  const addDriveImage = (
+    id: string,
+    name: string,
+    modifiedTime?: string | null,
+  ) => {
+    if (attachments.length >= MAX_ATTACHMENTS) return;
+    if (attachments.some((a) => a.type === "drive" && a.id === id)) return;
+    setAttachments((prev) => [
+      ...prev,
+      { type: "drive", id, name, modified_time: modifiedTime },
+    ]);
+  };
+
+  const removeAttachment = (index: number) => {
+    setAttachments((prev) => {
+      const next = [...prev];
+      const a = next[index];
+      if (a.type === "local" && a.preview) URL.revokeObjectURL(a.preview);
+      if (a.type === "drive")
+        setDriveChipPreviewFailed((s) => {
+          const n = new Set(s);
+          n.delete(a.id);
+          return n;
+        });
+      next.splice(index, 1);
+      return next;
+    });
+  };
 
   const copyMessage = async (messageId: string) => {
     const element = messageRefs.current[messageId];
@@ -465,6 +641,24 @@ export default function ChatPage() {
     }
   };
 
+  const fileToBase64 = (
+    file: File,
+  ): Promise<{ mime_type: string; data: string }> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const data = (reader.result as string).split(",")[1];
+        if (!data) return reject(new Error("Invalid file read"));
+        resolve({
+          mime_type: file.type || "image/jpeg",
+          data,
+        });
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
@@ -484,25 +678,62 @@ export default function ChatPage() {
       setCurrentSessionId(newSession.id);
     }
 
+    const attachmentDisplays: MessageAttachmentDisplay[] = attachments.map(
+      (a) =>
+        a.type === "local"
+          ? { type: "local", preview: a.preview }
+          : {
+              type: "drive",
+              id: a.id,
+              name: a.name,
+              modified_time: a.modified_time,
+            },
+    );
+
     const userMessage: Message = {
       id: Date.now().toString(),
       role: "user",
       content: input,
       timestamp: new Date(),
+      attachments: attachmentDisplays.length ? attachmentDisplays : undefined,
     };
 
     setMessages((prev) => [...prev, userMessage]);
+    const messageToSend = input;
     setInput("");
     setIsLoading(true);
+
     const fileIdToSend = currentSession?.selectedSummary?.id;
+    const driveIds = attachments
+      .filter((a): a is DriveAttachment => a.type === "drive")
+      .map((a) => a.id);
+    let imageInlinePayload:
+      | Array<{ mime_type: string; data: string }>
+      | undefined;
+    const localAttachments = attachments.filter(
+      (a): a is LocalAttachment => a.type === "local",
+    );
+    if (localAttachments.length > 0) {
+      try {
+        imageInlinePayload = await Promise.all(
+          localAttachments.map((a) => fileToBase64(a.file)),
+        );
+      } catch (err) {
+        console.error("Failed to read local images:", err);
+      }
+    }
+    setAttachments([]);
 
     try {
       await sendMessageToApi(
-        input,
+        messageToSend,
         selectedType,
         currentSession?.backendChatId ?? null,
         messages,
         fileIdToSend,
+        driveIds.length ? driveIds : undefined,
+        imageInlinePayload,
+        searchDriveContext,
       );
     } catch (error) {
       console.error("[bcyi-ai-assistant] Chat error:", error);
@@ -512,7 +743,7 @@ export default function ChatPage() {
           id: (Date.now() + 1).toString(),
           role: "assistant",
           content:
-            "Hello! I'm your BCYI x YorkU AI assistant. Currently in demo mode - please connect your backend API.",
+            "Hello! I'm your AI content assistant. Currently in demo mode — please connect your backend API.",
           timestamp: new Date(),
         },
       ]);
@@ -799,7 +1030,7 @@ export default function ChatPage() {
             </div>
             <div>
               <p className="text-sm font-semibold text-foreground">
-                BCYI x YorkU
+                AI Content Assistant
               </p>
               <p className="text-xs text-muted-foreground">AI Assistant</p>
             </div>
@@ -832,7 +1063,7 @@ export default function ChatPage() {
                     </span>
                     <span className="h-5 w-px bg-border" />
                     <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                      BCYI x YorkU AI Assistant
+                      AI Content Assistant
                     </span>
                   </div>
                   <p className="text-xs text-muted-foreground">
@@ -1179,7 +1410,7 @@ export default function ChatPage() {
                       />
                     </div>
                     <h2 className="text-3xl font-bold text-foreground mb-4 text-balance">
-                      Welcome to BCYI x YorkU AI Assistant
+                      Welcome to AI Content Assistant
                     </h2>
                     <p className="text-lg text-muted-foreground mb-8 max-w-2xl text-balance">
                       I'm here to help you create engaging content for Black
@@ -1281,9 +1512,49 @@ export default function ChatPage() {
                             <ReactMarkdown>{message.content}</ReactMarkdown>
                           </div>
                         ) : (
-                          <p className="whitespace-pre-wrap leading-relaxed">
-                            {message.content}
-                          </p>
+                          <>
+                            {message.attachments &&
+                              message.attachments.length > 0 && (
+                                <div className="flex flex-wrap gap-2 mb-3">
+                                  {message.attachments.map((att, idx) => (
+                                    <div
+                                      key={
+                                        att.type === "local"
+                                          ? att.preview
+                                          : att.id
+                                      }
+                                      className="rounded-lg overflow-hidden border border-white/20 shrink-0"
+                                      style={{ maxWidth: 160, maxHeight: 120 }}
+                                    >
+                                      {att.type === "local" ? (
+                                        <img
+                                          src={att.preview}
+                                          alt=""
+                                          className="w-full h-full object-cover max-h-[120px]"
+                                          onError={(e) => {
+                                            e.currentTarget.style.display =
+                                              "none";
+                                          }}
+                                        />
+                                      ) : (
+                                        <img
+                                          src={`/api/drive/images/${encodeURIComponent(att.id)}/preview?mtime=${encodeURIComponent(att.modified_time || "")}`}
+                                          alt=""
+                                          className="w-full h-full object-cover max-h-[120px]"
+                                          onError={(e) => {
+                                            e.currentTarget.style.display =
+                                              "none";
+                                          }}
+                                        />
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            <p className="whitespace-pre-wrap leading-relaxed">
+                              {message.content}
+                            </p>
+                          </>
                         )}
                         <p
                           className={cn(
@@ -1354,9 +1625,11 @@ export default function ChatPage() {
                             onClick={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
-                              const next = selectedSummary?.id === s.id ? null : s;
+                              const next =
+                                selectedSummary?.id === s.id ? null : s;
                               setSelectedSummaryForSession(next);
-                              if (next) setTimeout(() => setPromptModalOpen(true), 10);
+                              if (next)
+                                setTimeout(() => setPromptModalOpen(true), 10);
                             }}
                             className={cn(
                               "rounded-full px-3 py-1.5 text-sm border transition-colors",
@@ -1373,7 +1646,97 @@ export default function ChatPage() {
                   </div>
                 )}
                 <form onSubmit={handleSubmit} className="relative">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/gif,image/webp,image/heic"
+                    multiple
+                    className="hidden"
+                    onChange={onLocalFileChange}
+                  />
+                  {attachments.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mb-2">
+                      {attachments.map((a, i) => (
+                        <div
+                          key={a.type === "local" ? a.preview : a.id}
+                          className="flex items-center gap-1 rounded-lg border border-border bg-muted/50 overflow-hidden"
+                        >
+                          {a.type === "local" && (
+                            <img
+                              src={a.preview}
+                              alt=""
+                              className="h-10 w-10 object-cover shrink-0"
+                            />
+                          )}
+                          {a.type === "drive" && (
+                            <div className="h-10 w-10 shrink-0 bg-muted flex items-center justify-center rounded overflow-hidden relative">
+                              {driveChipPreviewFailed.has(a.id) ? (
+                                <HardDrive className="w-4 h-4 text-muted-foreground shrink-0" />
+                              ) : (
+                                <img
+                                  src={`/api/drive/images/${encodeURIComponent(a.id)}/preview?mtime=${encodeURIComponent(a.modified_time || "")}`}
+                                  alt=""
+                                  className="w-full h-full object-cover"
+                                  onError={() =>
+                                    setDriveChipPreviewFailed((prev) =>
+                                      new Set(prev).add(a.id),
+                                    )
+                                  }
+                                />
+                              )}
+                            </div>
+                          )}
+                          <span className="text-xs truncate max-w-[120px] px-1">
+                            {a.type === "local" ? a.file.name : a.name}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => removeAttachment(i)}
+                            className="p-1 hover:bg-muted rounded"
+                            aria-label="Remove attachment"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                   <div className="flex items-end gap-2">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          disabled={
+                            isLoading || attachments.length >= MAX_ATTACHMENTS
+                          }
+                          className="h-[60px] w-[60px] rounded-xl shrink-0 border-border"
+                          aria-label="Attach image"
+                        >
+                          <Paperclip className="w-5 h-5" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start" className="w-52">
+                        <DropdownMenuItem
+                          onClick={() => fileInputRef.current?.click()}
+                          disabled={attachments.length >= MAX_ATTACHMENTS}
+                        >
+                          <ImagePlus className="w-4 h-4 mr-2" />
+                          From device (max 2, 5MB each)
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => setDriveImagesOpen(true)}
+                          disabled={
+                            !driveConnected ||
+                            attachments.length >= MAX_ATTACHMENTS
+                          }
+                        >
+                          <HardDrive className="w-4 h-4 mr-2" />
+                          From Google Drive
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                     <div className="flex-1 relative">
                       <Textarea
                         ref={textareaRef}
@@ -1399,6 +1762,35 @@ export default function ChatPage() {
                         )}
                       </div>
                     </div>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <label
+                            className={cn(
+                              "flex h-[60px] shrink-0 items-center gap-2 rounded-xl border px-3 cursor-pointer transition-colors",
+                              "bg-muted/70 border-border hover:bg-muted text-foreground",
+                              searchDriveContext &&
+                                "border-primary/40 bg-primary/10",
+                            )}
+                          >
+                            <Switch
+                              checked={searchDriveContext}
+                              onCheckedChange={setSearchDriveContext}
+                              aria-label="Search Drive for context"
+                              className="data-[state=unchecked]:bg-muted data-[state=unchecked]:border data-[state=unchecked]:border-border data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                            />
+                            <span className="text-xs font-medium whitespace-nowrap">
+                              Search Drive
+                            </span>
+                          </label>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="max-w-[220px]">
+                          When on, your message uses files from Google Drive as
+                          context (slower). Turn off for quick replies using
+                          only your text and attached images.
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                     <Button
                       type="submit"
                       size="icon"
@@ -1410,8 +1802,7 @@ export default function ChatPage() {
                   </div>
                 </form>
                 <p className="text-xs text-muted-foreground text-center mt-3">
-                  AI-powered assistant for Black Creek Youth Initiative x York
-                  University
+                  AI-powered content assistant for your organization
                 </p>
               </div>
             </div>
@@ -1426,6 +1817,73 @@ export default function ChatPage() {
                 textareaRef.current?.focus();
               }}
             />
+            <Dialog open={driveImagesOpen} onOpenChange={setDriveImagesOpen}>
+              <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
+                <DialogHeader>
+                  <DialogTitle>Choose image from Google Drive</DialogTitle>
+                </DialogHeader>
+                <p className="text-sm text-muted-foreground">
+                  Select up to {MAX_ATTACHMENTS} images (max 5MB each). Newest
+                  first. You can also type e.g. “Take the latest image and give
+                  me an Instagram caption” to use the most recent image from
+                  Drive without selecting it here.
+                </p>
+                {driveImagesLoading ? (
+                  <div className="py-8 text-center text-muted-foreground">
+                    Loading images…
+                  </div>
+                ) : driveImages.length === 0 ? (
+                  <div className="py-8 text-center text-muted-foreground">
+                    No images found in Drive, or connect Google Drive first.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 overflow-y-auto min-h-0">
+                    {driveImages.map((img) => {
+                      const already = attachments.some(
+                        (a) => a.type === "drive" && a.id === img.id,
+                      );
+                      const disabled =
+                        already ||
+                        (attachments.length >= MAX_ATTACHMENTS &&
+                          !attachments.some(
+                            (a) => a.type === "drive" && a.id === img.id,
+                          ));
+                      return (
+                        <button
+                          key={img.id}
+                          type="button"
+                          disabled={disabled}
+                          onClick={() =>
+                            addDriveImage(img.id, img.name, img.modified_time)
+                          }
+                          className={cn(
+                            "flex flex-col items-center gap-1 p-2 rounded-lg border text-left transition-colors",
+                            "hover:bg-muted/80 disabled:opacity-50 disabled:pointer-events-none",
+                            already && "ring-2 ring-primary",
+                          )}
+                        >
+                          <div className="w-full aspect-square bg-muted rounded flex items-center justify-center overflow-hidden relative">
+                            {drivePreviewFailed.has(img.id) ? (
+                              <HardDrive className="w-8 h-8 text-muted-foreground shrink-0" />
+                            ) : (
+                              <img
+                                src={`/api/drive/images/${encodeURIComponent(img.id)}/preview?mtime=${encodeURIComponent(img.modified_time || "")}`}
+                                alt=""
+                                className="w-full h-full object-cover"
+                                onError={() => onDrivePreviewError(img.id)}
+                              />
+                            )}
+                          </div>
+                          <span className="text-xs truncate w-full">
+                            {img.name}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </DialogContent>
+            </Dialog>
           </>
         )}
       </main>
