@@ -1,7 +1,13 @@
 """Chat models"""
 from pydantic import BaseModel, Field
-from typing import List, Optional
+from typing import List, Optional, Union
 from datetime import datetime
+
+
+class InlineImagePart(BaseModel):
+    """Base64-encoded image for inline send (e.g. from local upload)."""
+    mime_type: str = Field(..., description="e.g. image/jpeg, image/png")
+    data: str = Field(..., description="Base64-encoded image bytes")
 
 
 class ChatMessage(BaseModel):
@@ -59,6 +65,9 @@ class SendMessageRequest(BaseModel):
     """Request to send a message in a chat"""
     message: str = Field(..., description="User message")
     context_file_id: Optional[str] = Field(None, description="Optional Drive file ID to include as priority context (e.g. selected event summary)")
+    image_drive_ids: Optional[List[str]] = Field(None, description="Google Drive file IDs of images to attach (max 2)")
+    image_inline: Optional[List[InlineImagePart]] = Field(None, description="Inline base64 images from local upload (max 2)")
+    include_drive_context: Optional[bool] = Field(True, description="If False, skip searching Drive for context files (faster when only using attachments)")
     
     class Config:
         json_schema_extra = {

@@ -1,5 +1,5 @@
 /**
- * API client for BCYI AI Assistant backend
+ * API client for AI Content Assistant backend
  */
 
 // On server-side (Next.js API routes), use BACKEND_URL (works in Docker)
@@ -31,15 +31,33 @@ export class BackendAPIClient {
   }
 
   /**
-   * Send a message in a chat
+   * Send a message in a chat (optionally with attached images)
    */
-  async sendMessage(chatId: string, message: string, opts?: { context_file_id?: string }): Promise<{
+  async sendMessage(
+    chatId: string,
+    message: string,
+    opts?: {
+      context_file_id?: string;
+      image_drive_ids?: string[];
+      image_inline?: Array<{ mime_type: string; data: string }>;
+      include_drive_context?: boolean;
+    }
+  ): Promise<{
     message: string;
     context_files_used: number;
     timestamp: string;
   }> {
-    const body: { message: string; context_file_id?: string } = { message };
+    const body: {
+      message: string;
+      context_file_id?: string;
+      image_drive_ids?: string[];
+      image_inline?: Array<{ mime_type: string; data: string }>;
+      include_drive_context?: boolean;
+    } = { message };
     if (opts?.context_file_id) body.context_file_id = opts.context_file_id;
+    if (opts?.image_drive_ids?.length) body.image_drive_ids = opts.image_drive_ids;
+    if (opts?.image_inline?.length) body.image_inline = opts.image_inline;
+    if (opts?.include_drive_context === false) body.include_drive_context = false;
     const response = await fetch(`${this.baseUrl}/api/chat/${chatId}/message`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -136,6 +154,46 @@ export class BackendAPIClient {
     const q = sp.toString();
     const response = await fetch(`${this.baseUrl}/api/drive/files${q ? `?${q}` : ''}`);
     if (!response.ok) throw new Error(`List files failed: ${response.statusText}`);
+    return response.json();
+  }
+
+  /**
+   * List image files from Google Drive (sorted by modified time, newest first)
+   */
+  async getDriveImages(params?: { limit?: number }): Promise<{
+    images: Array<{
+      id: string;
+      name: string;
+      mime_type: string;
+      created_time: string | null;
+      modified_time: string | null;
+      size: number | null;
+    }>;
+    count: number;
+  }> {
+    const sp = new URLSearchParams();
+    if (params?.limit) sp.set('limit', String(params.limit));
+    const q = sp.toString();
+    const response = await fetch(`${this.baseUrl}/api/drive/images${q ? `?${q}` : ''}`);
+    if (!response.ok) throw new Error('Failed to list Drive images');
+    return response.json();
+  }
+
+  /**
+   * Get the most recently modified image in Google Drive
+   */
+  async getLatestDriveImage(): Promise<{
+    image: {
+      id: string;
+      name: string;
+      mime_type: string;
+      modified_time: string | null;
+      size: number | null;
+    } | null;
+    message?: string;
+  }> {
+    const response = await fetch(`${this.baseUrl}/api/drive/images/latest`);
+    if (!response.ok) throw new Error('Failed to get latest Drive image');
     return response.json();
   }
 

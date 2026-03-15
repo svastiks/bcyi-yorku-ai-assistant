@@ -11,16 +11,16 @@ from app.api.routes import chat, content, drive
 async def lifespan(app: FastAPI):
     """Application lifespan events"""
     # Startup
-    print("Starting up BCYI AI Assistant API...")
+    print("Starting up AI Content Assistant API...")
     yield
     # Shutdown
-    print("Shutting down BCYI AI Assistant API...")
+    print("Shutting down AI Content Assistant API...")
 
 
 # Create FastAPI app
 app = FastAPI(
-    title="BCYI x YorkU AI Assistant API",
-    description="AI-powered content generation for Black Creek Youth Initiative",
+    title="AI Content Assistant API",
+    description="AI-powered content generation for newsletters, blog posts, donor emails, and social media",
     version="0.1.0",
     debug=settings.debug,
     lifespan=lifespan
@@ -45,7 +45,7 @@ app.include_router(drive.router, prefix="/api/drive", tags=["drive"])
 async def root():
     """Root endpoint"""
     return {
-        "name": "BCYI x YorkU AI Assistant API",
+        "name": "AI Content Assistant API",
         "version": "0.1.0",
         "status": "running"
     }

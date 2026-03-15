@@ -51,7 +51,7 @@ export async function GET() {
 
     const page = {
       id: PAGE_ID,
-      name: pageData.name || 'Black Creek Youth Initiative',
+      name: pageData.name || 'Your Organization',
       followers_count: String(pageData.followers_count ?? 0),
       fan_count: String(pageData.fan_count ?? 0),
       pageUrl: `https://www.facebook.com/profile.php?id=${PAGE_ID}`,
