@@ -252,3 +252,86 @@ class GoogleDriveService:
         if folder_id:
             return folder_id
         return self.create_folder(name, parent_id)
+
+    # MIME types treated as images (Drive native + common uploads)
+    IMAGE_MIME_TYPES = (
+        "image/jpeg",
+        "image/png",
+        "image/gif",
+        "image/webp",
+        "image/heif",
+        "image/heic",
+        "image/bmp",
+        "image/svg+xml",
+    )
+
+    def list_images(self, page_size: int = 200, max_size_bytes: Optional[int] = None) -> List[DriveFile]:
+        """
+        List image files from Google Drive (all images, sorted by modified_time descending).
+        Optionally filter by max size (e.g. 5MB) to avoid huge files.
+        """
+        try:
+            # Build query: not trashed, mimeType is one of the image types
+            mime_conditions = " or ".join(f"mimeType='{m}'" for m in self.IMAGE_MIME_TYPES)
+            query_parts = ["trashed=false", f"({mime_conditions})"]
+            query_string = " and ".join(query_parts)
+
+            results = self.service.files().list(
+                q=query_string,
+                pageSize=page_size,
+                orderBy="modifiedTime desc",
+                fields="nextPageToken, files(id, name, mimeType, createdTime, modifiedTime, size, parents)",
+            ).execute()
+
+            items = results.get("files", [])
+            drive_files = []
+            for item in items:
+                size_val = int(item["size"]) if item.get("size") else None
+                if max_size_bytes is not None and size_val is not None and size_val > max_size_bytes:
+                    continue
+                drive_file = DriveFile(
+                    id=item["id"],
+                    name=item["name"],
+                    mime_type=item["mimeType"],
+                    created_time=(
+                        datetime.fromisoformat(item["createdTime"].replace("Z", "+00:00"))
+                        if item.get("createdTime") else None
+                    ),
+                    modified_time=(
+                        datetime.fromisoformat(item["modifiedTime"].replace("Z", "+00:00"))
+                        if item.get("modifiedTime") else None
+                    ),
+                    size=size_val,
+                )
+                drive_files.append(drive_file)
+            return drive_files
+        except Exception as e:
+            print(f"Error listing images: {str(e)}")
+            return []
+
+    def get_file_bytes(self, file_id: str) -> Optional[bytes]:
+        """
+        Download file bytes (for images or binary). Use get_file_content for text.
+        """
+        try:
+            request = self.service.files().get_media(fileId=file_id)
+            buf = io.BytesIO()
+            downloader = MediaIoBaseDownload(buf, request)
+            done = False
+            while not done:
+                _, done = downloader.next_chunk()
+            return buf.getvalue()
+        except Exception as e:
+            print(f"Error downloading file {file_id}: {str(e)}")
+            return None
+
+    def get_file_mime_type(self, file_id: str) -> Optional[str]:
+        """Get MIME type of a Drive file."""
+        try:
+            meta = self.service.files().get(
+                fileId=file_id, fields="mimeType"
+            ).execute()
+            return meta.get("mimeType")
+        except Exception as e:
+            print(f"Error getting mime type for {file_id}: {str(e)}")
+            return None

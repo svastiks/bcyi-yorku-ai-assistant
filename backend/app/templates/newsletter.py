@@ -5,9 +5,9 @@ NEWSLETTER_TEMPLATE = {
     "name": "Newsletter",
     "description": "Create engaging monthly updates",
     
-    "system_prompt": """You are a community communicator for Black Creek Youth Initiative (BCYI), a non-profit organization partnering with York University to empower youth through education, sports, and community programs.
+    "system_prompt": """You are a community communicator for a mission-driven organization.
 
-GOAL: Summarize activity, reinforce impact, and keep the community engaged and informed.
+GOAL: Summarize activity, reinforce impact, and keep the community engaged and informed. Use the context files (e.g. event summaries, past newsletters) to reflect the organization's actual name, programs, and voice.
 
 INSTRUCTIONS:
 - When reference newsletters are provided in context, analyze their structure and pacing — match the style without copying content
@@ -24,7 +24,7 @@ OUTPUT REQUIREMENTS:
 - Length: 300–500 words total
 
 VOICE:
-Act like a mission-driven non-profit communicator writing to a community that already knows and cares about BCYI. Warm, honest, informative — never promotional or over-enthusiastic.""",
+Act like a mission-driven non-profit communicator writing to a community that already knows and cares about the organization. Warm, honest, informative — never promotional or over-enthusiastic. Use context to get the organization's name and specifics right.""",
 
     "structure": {
         "sections": [
@@ -47,7 +47,7 @@ Act like a mission-driven non-profit communicator writing to a community that al
         "success_stories": {
             "folder": "Impact Stories",
             "count": 2,
-            "description": "Youth success stories and testimonials"
+            "description": "Success stories and testimonials"
         },
         "previous_newsletters": {
             "folder": "Newsletters",
@@ -61,47 +61,40 @@ Act like a mission-driven non-profit communicator writing to a community that al
         }
     },
     
-    "example_output": """Subject: January 2026 - Celebrating Youth Success at BCYI
+    "example_output": """Subject: January 2026 - Celebrating Success This Month
 
-Dear BCYI Community,
+Dear Community,
 
-Happy New Year! As we step into 2026, we're excited to share the incredible achievements and moments from the past month at Black Creek Youth Initiative.
+Happy New Year! As we step into 2026, we're excited to share the achievements and moments from the past month.
 
-🏀 MAIN HIGHLIGHT: Basketball Tournament Brings Community Together
+🏀 MAIN HIGHLIGHT: [Use context to describe a key event]
 
-Last weekend, over 50 youth participated in our annual Winter Basketball Tournament. The energy was electric as teams competed with skill, sportsmanship, and heart. Special congratulations to the Storm Squad for taking home the championship trophy!
+Last weekend, [use context for numbers and details]. Special congratulations to [use context for names or teams]!
 
 📚 Recent Activities
 
-- After-school tutoring program served 40 students this month
-- Digital arts workshop introduced 25 youth to graphic design
-- Community meal program provided 200+ healthy meals
+- [Use context for program stats and highlights]
+- [Use context]
+- [Use context]
 
-🌟 Success Story: Meet Sarah
+🌟 Success Story: [Use context for a named story or anonymized example]
 
-Sarah, a Grade 11 student, has been with BCYI for three years. Through our mentorship program, she discovered her passion for computer science and recently secured admission to York University's Computer Science program with a scholarship!
+[Use context for quote or outcome.]
 
-"BCYI gave me the confidence and support I needed to pursue my dreams," Sarah shares.
+📅 Coming Up
 
-📅 Coming Up in February
-
-- Feb 10: College Application Workshop
-- Feb 15-17: Reading Week Camp
-- Feb 24: Community Celebration Night
+- [Use context for upcoming events and dates]
 
 💙 How You Can Help
 
-Your support makes stories like Sarah's possible. Consider:
+Your support makes stories like these possible. Consider:
 - Volunteering for upcoming programs
-- Donating to support youth scholarships
-- Spreading the word about BCYI in your community
+- Donating to support [use context]
+- Spreading the word in your community
 
-Together, we're building brighter futures for Black Creek youth!
+Together, we're building brighter futures!
 
 With gratitude,
-The BCYI Team
-
----
-Black Creek Youth Initiative x York University
-Creating content for youth empowerment"""
+[Use context for sign-off and organization name]
+"""
 }

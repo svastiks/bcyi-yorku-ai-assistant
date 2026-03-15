@@ -2,7 +2,7 @@
 from google import genai
 from google.genai import types
 from app.config import settings
-from typing import Optional, Generator, Dict
+from typing import Optional, Generator, Dict, List, Tuple
 import time
 
 
@@ -50,34 +50,66 @@ class GeminiClient:
             ),
         ]
     
-    def generate_content(self, prompt: str, stream: bool = False) -> str:
+    def generate_content(
+        self,
+        prompt: str,
+        stream: bool = False,
+        image_parts: Optional[List[Tuple[bytes, str]]] = None,
+    ) -> str:
         """
-        Generate content from prompt
+        Generate content from prompt. Optionally include image parts (bytes, mime_type).
         
         Args:
-            prompt: Input prompt
+            prompt: Input prompt (text)
             stream: Whether to stream response
+            image_parts: Optional list of (image_bytes, mime_type) for multimodal input
             
         Returns:
             Generated text content
         """
         try:
+            if image_parts:
+                return self._generate_multimodal(prompt, image_parts, stream=stream)
             if stream:
-                # Return generator for streaming
                 return self._generate_streaming(prompt)
-            else:
-                # Generate complete response
-                response = self.client.models.generate_content(
-                    model=self.model_id,
-                    contents=prompt,
-                    config=self.generation_config
-                )
-                
-                return response.text
-        
+            response = self.client.models.generate_content(
+                model=self.model_id,
+                contents=prompt,
+                config=self.generation_config,
+            )
+            return response.text
         except Exception as e:
             print(f"Error generating content: {str(e)}")
             raise
+
+    def _generate_multimodal(
+        self,
+        prompt: str,
+        image_parts: List[Tuple[bytes, str]],
+        stream: bool = False,
+    ) -> str:
+        """Build contents with text + image parts and generate."""
+        parts = []
+        for img_bytes, mime_type in image_parts:
+            parts.append(types.Part.from_bytes(data=img_bytes, mime_type=mime_type))
+        parts.append(types.Part.from_text(text=prompt))
+        contents = types.Content(role="user", parts=parts)
+        if stream:
+            out = []
+            for chunk in self.client.models.generate_content_stream(
+                model=self.model_id,
+                contents=contents,
+                config=self.generation_config,
+            ):
+                if chunk.text:
+                    out.append(chunk.text)
+            return "".join(out)
+        response = self.client.models.generate_content(
+            model=self.model_id,
+            contents=contents,
+            config=self.generation_config,
+        )
+        return response.text
     
     def _generate_streaming(self, prompt: str) -> Generator[str, None, None]:
         """
@@ -108,33 +140,24 @@ class GeminiClient:
         self,
         prompt: str,
         max_retries: int = 3,
-        retry_delay: int = 2
+        retry_delay: int = 2,
+        image_parts: Optional[List[Tuple[bytes, str]]] = None,
     ) -> str:
         """
-        Generate content with retry logic
-        
-        Args:
-            prompt: Input prompt
-            max_retries: Maximum number of retries
-            retry_delay: Delay between retries in seconds
-            
-        Returns:
-            Generated text content
+        Generate content with retry logic. Supports optional image parts for vision.
         """
         last_error = None
-        
         for attempt in range(max_retries):
             try:
-                return self.generate_content(prompt, stream=False)
-            
+                return self.generate_content(
+                    prompt, stream=False, image_parts=image_parts
+                )
             except Exception as e:
                 last_error = e
                 print(f"Attempt {attempt + 1} failed: {str(e)}")
-                
                 if attempt < max_retries - 1:
                     time.sleep(retry_delay)
-                    retry_delay *= 2  # Exponential backoff
-        
+                    retry_delay *= 2
         raise Exception(f"Failed after {max_retries} attempts: {str(last_error)}")
     
     def count_tokens(self, text: str) -> int:
