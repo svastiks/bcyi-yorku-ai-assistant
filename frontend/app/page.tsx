@@ -231,7 +231,7 @@ export default function LandingPage() {
                   Aorta creates polished, on-brand content for every format your team needs.
                 </p>
               </div>
-              <div className="flex-1 relative overflow-hidden mx-4 mb-0 rounded-t-2xl">
+              <div className="relative overflow-hidden mx-4 mb-0 rounded-t-2xl" style={{maxHeight:"180px"}}>
                 <Image
                   src="/content-types-sidebar.png"
                   alt="Content Types"
@@ -240,7 +240,7 @@ export default function LandingPage() {
                   className="w-full object-cover object-top rounded-t-2xl"
                 />
                 {/* fade bottom into yellow */}
-                <div className="absolute bottom-0 left-0 right-0 h-12" style={{background:"linear-gradient(to bottom, transparent, #f9c84a)"}}/>
+                <div className="absolute bottom-0 left-0 right-0 h-16" style={{background:"linear-gradient(to bottom, transparent, #f9c84a)"}}/>
               </div>
             </div>
 
