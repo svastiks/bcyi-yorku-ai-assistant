@@ -206,47 +206,35 @@ export default function LandingPage() {
 
           <div className="max-w-5xl mx-auto grid grid-cols-2 gap-4">
 
-            {/* Chat With Aorta — screenshot + text at bottom */}
-            <div ref={r8} className="in-hidden card-hover rounded-3xl overflow-hidden shadow-2xl flex flex-col" style={{background:"rgba(255,255,255,0.1)", minHeight:"360px"}}>
-              <div className="flex-1 overflow-hidden">
-                <Image src="/chat-conversation.png" alt="Chat with Aorta" width={900} height={500} className="w-full object-cover object-top"/>
-              </div>
-              <div className="p-6">
-                <h3 className="text-xl font-bold text-white mb-1">Chat With Aorta</h3>
-                <p className="text-white/70 text-sm leading-relaxed">Aorta responds like a teammate, generating newsletters, blog posts, donor emails, social media captions and in moments.</p>
-              </div>
+            {/* Chat With Aorta — image already has text baked in */}
+            <div ref={r8} className="in-hidden card-hover rounded-3xl overflow-hidden shadow-2xl" style={{minHeight:"360px"}}>
+              <Image src="/chat-conversation.png" alt="Chat with Aorta" width={900} height={700} className="w-full h-full object-cover object-top"/>
             </div>
 
-            {/* Content Types — text at top + screenshot at bottom */}
-            <div ref={r9} className="in-hidden card-hover rounded-3xl overflow-hidden shadow-2xl flex flex-col" style={{background:"#f9c84a", minHeight:"360px"}}>
-              <div className="p-6 pb-3">
-                <h3 className="text-xl font-bold text-gray-900 mb-1">Content Types</h3>
-                <p className="text-gray-700 text-sm leading-relaxed">Aorta creates polished, on-brand content for every format your team needs.</p>
-              </div>
-              <div className="flex-1 overflow-hidden">
-                <Image src="/content-types-card.png" alt="Content Types" width={700} height={600} className="w-full h-full object-cover object-top"/>
-              </div>
+            {/* Content Types — image already has text baked in */}
+            <div ref={r9} className="in-hidden card-hover rounded-3xl overflow-hidden shadow-2xl" style={{minHeight:"360px"}}>
+              <Image src="/content-types-card.png" alt="Content Types" width={700} height={700} className="w-full h-full object-cover object-top"/>
             </div>
 
-            {/* Integrate Your Data — text + illustration */}
+            {/* Integrate Your Data — text + illustration (no text in image) */}
             <div ref={r10} className="in-hidden card-hover rounded-3xl overflow-hidden shadow-2xl flex flex-col" style={{background:"#f9c84a", minHeight:"300px"}}>
-              <div className="p-6 pb-2">
-                <h3 className="text-xl font-bold text-gray-900 mb-1">Integrate Your Data</h3>
-                <p className="text-gray-700 text-sm leading-relaxed">Aorta integrates directly with Google Drive — pulling context from your files and organizing your documents.</p>
+              <div className="p-7">
+                <h3 className="text-xl font-bold text-gray-900 mb-2">Integrate Your Data</h3>
+                <p className="text-gray-700 text-sm leading-relaxed">Aorta integrates directly with Google Drive — pulling context from your files and organizing your documents automatically.</p>
               </div>
-              <div className="flex-1 overflow-hidden flex items-center justify-center p-4">
-                <Image src="/drive-illustration.png" alt="Google Drive Integration" width={280} height={280} className="object-contain"/>
+              <div className="flex-1 flex items-center justify-center px-6 pb-4">
+                <Image src="/drive-illustration.png" alt="Google Drive Integration" width={260} height={260} className="object-contain"/>
               </div>
             </div>
 
-            {/* Track Your Impact — screenshot + text at bottom */}
-            <div className="in-hidden card-hover rounded-3xl overflow-hidden shadow-2xl flex flex-col" style={{background:"rgba(255,255,255,0.1)", minHeight:"300px"}}>
-              <div className="flex-1 overflow-hidden">
-                <Image src="/social-stats.png" alt="Social Media Stats" width={900} height={400} className="w-full object-cover object-top"/>
+            {/* Track Your Impact — screenshot + text overlay (no text in image) */}
+            <div className="in-hidden card-hover rounded-3xl overflow-hidden shadow-2xl flex flex-col" style={{background:"#f9c84a", minHeight:"300px"}}>
+              <div className="p-7">
+                <h3 className="text-xl font-bold text-gray-900 mb-2">Track Your Impact</h3>
+                <p className="text-gray-700 text-sm leading-relaxed">See how your content performs across platforms with built-in social media stats — so you always know what&apos;s resonating.</p>
               </div>
-              <div className="p-6">
-                <h3 className="text-xl font-bold text-white mb-1">Track Your Impact</h3>
-                <p className="text-white/70 text-sm leading-relaxed">See how your content performs across platforms with built-in social media stats, so you always know what&apos;s resonating with your community.</p>
+              <div className="flex-1 overflow-hidden mx-4 mb-4 rounded-2xl shadow-md">
+                <Image src="/social-stats.png" alt="Social Media Stats" width={900} height={400} className="w-full object-cover object-top"/>
               </div>
             </div>
 
@@ -274,7 +262,6 @@ export default function LandingPage() {
                     { icon:"▶", platform:"YouTube", desc:"Subscribers, views & recent videos" },
                     { icon:"f", platform:"Facebook", desc:"Reach, engagement & post performance" },
                     { icon:"📷", platform:"Instagram", desc:"Followers, likes & story stats" },
-                    { icon:"♪", platform:"TikTok", desc:"Views, shares & trending content" },
                   ].map(p => (
                     <div key={p.platform} className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 border border-gray-100">
                       <div className="w-9 h-9 bg-[#f97060]/10 rounded-lg flex items-center justify-center text-sm font-bold text-[#f97060]">{p.icon}</div>
