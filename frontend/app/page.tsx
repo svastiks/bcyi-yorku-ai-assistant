@@ -206,14 +206,35 @@ export default function LandingPage() {
 
           <div className="max-w-5xl mx-auto grid grid-cols-2 gap-4">
 
-            {/* Chat With Aorta — image already has text baked in */}
-            <div ref={r8} className="in-hidden card-hover rounded-3xl overflow-hidden shadow-2xl" style={{minHeight:"360px"}}>
-              <Image src="/chat-conversation.png" alt="Chat with Aorta" width={900} height={700} className="w-full h-full object-cover object-top"/>
+            {/* Chat With Aorta — yellow card, screenshot fades into yellow, white text */}
+            <div ref={r8} className="in-hidden card-hover rounded-3xl overflow-hidden shadow-2xl flex flex-col" style={{background:"#f9c84a", minHeight:"360px"}}>
+              {/* Screenshot with gradient fade into yellow */}
+              <div className="relative">
+                <Image src="/chat-conversation.png" alt="Chat with Aorta" width={900} height={420} className="w-full object-cover object-top" style={{maxHeight:"240px"}}/>
+                {/* Gradient overlay: transparent → yellow */}
+                <div className="absolute inset-0" style={{background:"linear-gradient(to bottom, transparent 40%, #f9c84a 100%)"}}/>
+              </div>
+              {/* Text */}
+              <div className="px-7 pb-7 -mt-4 relative z-10">
+                <h3 className="text-2xl font-bold text-white mb-2">Chat With Aorta</h3>
+                <p className="text-white/85 text-sm leading-relaxed">
+                  Aorta responds like a teammate — generating newsletters, blog posts, donor emails, and social media captions in moments.
+                </p>
+              </div>
             </div>
 
-            {/* Content Types — image already has text baked in */}
-            <div ref={r9} className="in-hidden card-hover rounded-3xl overflow-hidden shadow-2xl" style={{minHeight:"360px"}}>
-              <Image src="/content-types-card.png" alt="Content Types" width={700} height={700} className="w-full h-full object-cover object-top"/>
+            {/* Content Types — yellow card, screenshot fades in, white text */}
+            <div ref={r9} className="in-hidden card-hover rounded-3xl overflow-hidden shadow-2xl flex flex-col" style={{background:"#f9c84a", minHeight:"360px"}}>
+              <div className="relative">
+                <Image src="/content-types-card.png" alt="Content Types" width={700} height={420} className="w-full object-cover object-top" style={{maxHeight:"240px"}}/>
+                <div className="absolute inset-0" style={{background:"linear-gradient(to bottom, transparent 40%, #f9c84a 100%)"}}/>
+              </div>
+              <div className="px-7 pb-7 -mt-4 relative z-10">
+                <h3 className="text-2xl font-bold text-white mb-2">Content Types</h3>
+                <p className="text-white/85 text-sm leading-relaxed">
+                  Aorta creates polished, on-brand content for every format your team needs — newsletters, blog posts, donor emails, and more.
+                </p>
+              </div>
             </div>
 
             {/* Integrate Your Data — text + illustration (no text in image) */}
