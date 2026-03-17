@@ -120,21 +120,21 @@ export default function LandingPage() {
             </h2>
           </div>
 
+          {/* App screenshot — full width */}
+          <div ref={card1Ref} className="fade-up max-w-5xl mx-auto mb-4 rounded-3xl overflow-hidden shadow-2xl border border-gray-100">
+            <Image
+              src="/chat-screenshot.png"
+              alt="Aorta chat interface"
+              width={1200}
+              height={700}
+              className="w-full h-auto"
+            />
+          </div>
+
           <div className="max-w-5xl mx-auto grid grid-cols-2 gap-4">
 
-            {/* Card 1: Content Types */}
-            <div ref={card1Ref} className="fade-up fade-up-delay-1 rounded-3xl bg-[#f9c84a] p-8 flex flex-col justify-center" style={{ minHeight: "260px" }}>
-              <div className="w-10 h-10 bg-white/40 rounded-xl flex items-center justify-center mb-4">
-                <Image src="/icons/blog-post.png" alt="" width={22} height={22} />
-              </div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-3">Content Types</h3>
-              <p className="text-gray-700 leading-relaxed text-sm">
-                Aorta creates polished, on-brand content for every format your team needs — newsletters, blog posts, donor emails and more.
-              </p>
-            </div>
-
-            {/* Card 2: Chat With Aorta */}
-            <div ref={card2Ref} className="fade-up fade-up-delay-2 rounded-3xl p-8 flex flex-col justify-center" style={{ backgroundColor: "#e8756a", minHeight: "260px" }}>
+            {/* Card 1: Chat With Aorta */}
+            <div ref={card2Ref} className="fade-up fade-up-delay-1 rounded-3xl p-8 flex flex-col justify-center" style={{ backgroundColor: "#e8756a", minHeight: "220px" }}>
               <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center mb-4">
                 <Image src="/icons/aorta-heart.png" alt="" width={22} height={22} />
               </div>
@@ -144,39 +144,44 @@ export default function LandingPage() {
               </p>
             </div>
 
+            {/* Card 2: Content Types */}
+            <div ref={card3Ref} className="fade-up fade-up-delay-2 rounded-3xl bg-[#f9c84a] p-8 flex flex-col justify-center" style={{ minHeight: "220px" }}>
+              <div className="w-10 h-10 bg-white/40 rounded-xl flex items-center justify-center mb-4">
+                <Image src="/icons/blog-post.png" alt="" width={22} height={22} />
+              </div>
+              <h3 className="text-2xl font-bold text-gray-900 mb-3">Content Types</h3>
+              <p className="text-gray-700 leading-relaxed text-sm">
+                Aorta creates polished, on-brand content for every format your team needs — newsletters, blog posts, donor emails and more.
+              </p>
+            </div>
+
             {/* Card 3: Integrate Your Data */}
-            <div ref={card3Ref} className="fade-up fade-up-delay-3 rounded-3xl p-8 flex flex-col justify-between" style={{ backgroundColor: "#e8756a", minHeight: "240px" }}>
+            <div ref={card4Ref} className="fade-up fade-up-delay-3 rounded-3xl bg-[#f9c84a] p-8 flex flex-col justify-between" style={{ minHeight: "220px" }}>
               <div>
-                <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center mb-4">
-                  <Image src="/icons/newsletter.png" alt="" width={22} height={22} />
+                <div className="w-10 h-10 bg-white/40 rounded-xl flex items-center justify-center mb-4">
+                  <svg width="22" height="18" viewBox="0 0 87.3 78" xmlns="http://www.w3.org/2000/svg">
+                    <path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" fill="#0066da"/>
+                    <path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44a9.06 9.06 0 0 0 -1.2 4.5h27.5z" fill="#00ac47"/>
+                    <path d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5h-27.502l5.852 11.5z" fill="#ea4335"/>
+                    <path d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.2-4.5-1.2h-18.5c-1.6 0-3.15.45-4.5 1.2z" fill="#00832d"/>
+                    <path d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill="#2684fc"/>
+                    <path d="m73.4 26.5-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 27h27.45c0-1.55-.4-3.1-1.2-4.5z" fill="#ffba00"/>
+                  </svg>
                 </div>
-                <h3 className="text-2xl font-bold text-white mb-3">Integrate Your Data</h3>
-                <p className="text-white/85 leading-relaxed text-sm">
+                <h3 className="text-2xl font-bold text-gray-900 mb-3">Integrate Your Data</h3>
+                <p className="text-gray-700 leading-relaxed text-sm">
                   Aorta integrates directly with Google Drive — pulling context from your files and organizing your documents.
                 </p>
-              </div>
-              <div className="flex items-center gap-3 mt-6">
-                <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center">
-                  <Image src="/icons/aorta-heart.png" alt="" width={26} height={26} />
-                </div>
-                <svg width="38" height="32" viewBox="0 0 87.3 78" xmlns="http://www.w3.org/2000/svg">
-                  <path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" fill="#0066da"/>
-                  <path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44a9.06 9.06 0 0 0 -1.2 4.5h27.5z" fill="#00ac47"/>
-                  <path d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5h-27.502l5.852 11.5z" fill="#ea4335"/>
-                  <path d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.2-4.5-1.2h-18.5c-1.6 0-3.15.45-4.5 1.2z" fill="#00832d"/>
-                  <path d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill="#2684fc"/>
-                  <path d="m73.4 26.5-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 27h27.45c0-1.55-.4-3.1-1.2-4.5z" fill="#ffba00"/>
-                </svg>
               </div>
             </div>
 
             {/* Card 4: Track Your Impact */}
-            <div ref={card4Ref} className="fade-up fade-up-delay-4 rounded-3xl bg-[#f9c84a] p-8 flex flex-col justify-center" style={{ minHeight: "240px" }}>
-              <div className="w-10 h-10 bg-white/40 rounded-xl flex items-center justify-center mb-4">
+            <div className="fade-up fade-up-delay-4 rounded-3xl p-8 flex flex-col justify-center" style={{ backgroundColor: "#e8756a", minHeight: "220px" }}>
+              <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center mb-4">
                 <Image src="/icons/social-media.png" alt="" width={22} height={22} />
               </div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-3">Track Your Impact</h3>
-              <p className="text-gray-700 leading-relaxed text-sm">
+              <h3 className="text-2xl font-bold text-white mb-3">Track Your Impact</h3>
+              <p className="text-white/85 leading-relaxed text-sm">
                 See how your content performs across platforms with built-in social media stats, so you always know what&apos;s resonating with your community.
               </p>
             </div>
