@@ -206,61 +206,75 @@ export default function LandingPage() {
 
           <div className="max-w-5xl mx-auto grid grid-cols-2 gap-4">
 
-            {/* Chat screenshot card */}
-            <div ref={r8} className="in-hidden card-hover rounded-3xl overflow-hidden ring-1 ring-white/10 shadow-2xl" style={{minHeight:"300px"}}>
-              <Image src="/chat-conversation.png" alt="Aorta chat" width={900} height={560} className="w-full h-full object-cover object-top"/>
+            {/* Chat With Aorta — screenshot card */}
+            <div ref={r8} className="in-hidden card-hover rounded-3xl overflow-hidden shadow-2xl" style={{minHeight:"320px"}}>
+              <Image src="/chat-conversation.png" alt="Chat with Aorta" width={900} height={560} className="w-full h-full object-cover object-top"/>
             </div>
 
-            {/* Content Types */}
-            <div ref={r9} className="in-hidden card-hover rounded-3xl p-8 flex flex-col justify-between" style={{background:"linear-gradient(135deg,#f9c84a,#f9a040)", minHeight:"300px"}}>
+            {/* Content Types — screenshot card */}
+            <div ref={r9} className="in-hidden card-hover rounded-3xl overflow-hidden shadow-2xl" style={{minHeight:"320px"}}>
+              <Image src="/content-types-card.png" alt="Content Types" width={700} height={900} className="w-full h-full object-cover object-top"/>
+            </div>
+
+            {/* Integrate Your Data — illustration card */}
+            <div ref={r10} className="in-hidden card-hover rounded-3xl overflow-hidden shadow-2xl" style={{minHeight:"280px"}}>
+              <Image src="/drive-illustration.png" alt="Google Drive Integration" width={700} height={700} className="w-full h-full object-cover object-center"/>
+            </div>
+
+            {/* Track Your Impact — social stats card */}
+            <div className="in-hidden card-hover rounded-3xl overflow-hidden shadow-2xl" style={{minHeight:"280px"}}>
+              <Image src="/social-stats.png" alt="Social Media Stats" width={900} height={560} className="w-full h-full object-cover object-top"/>
+            </div>
+
+          </div>
+        </section>
+
+        {/* ─── SOCIAL MEDIA ANALYTICS SECTION ─── */}
+        <section className="px-8 py-24 bg-white">
+          <div className="max-w-5xl mx-auto">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+
+              {/* Left: text */}
               <div>
-                <div className="w-11 h-11 bg-white/30 rounded-xl flex items-center justify-center mb-5">
-                  <Image src="/icons/blog-post.png" alt="" width={22} height={22}/>
+                <div className="inline-flex items-center gap-2 bg-[#f97060]/10 border border-[#f97060]/20 px-4 py-1.5 rounded-full text-sm text-[#c45a50] mb-5">
+                  📊 Built-in Analytics
                 </div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-3">Content Types</h3>
-                <p className="text-gray-800/75 text-sm leading-relaxed">Polished, on-brand content for every format your team needs.</p>
-              </div>
-              <div className="flex flex-wrap gap-2 mt-5">
-                {["Newsletter","Blog Post","Donor Email","Social Media","General"].map(t => (
-                  <span key={t} className="bg-white/40 text-gray-800 text-xs px-3 py-1 rounded-full font-medium">{t}</span>
-                ))}
-              </div>
-            </div>
-
-            {/* Chat With Aorta */}
-            <div ref={r10} className="in-hidden card-hover rounded-3xl p-8 flex flex-col justify-end" style={{background:"linear-gradient(135deg,#b94060,#f97060)", minHeight:"260px"}}>
-              <div className="w-11 h-11 bg-white/20 rounded-xl flex items-center justify-center mb-5">
-                <Image src="/icons/aorta-heart.png" alt="" width={22} height={22}/>
-              </div>
-              <h3 className="text-2xl font-bold text-white mb-3">Chat With Aorta</h3>
-              <p className="text-white/80 text-sm leading-relaxed">Responds like a teammate — generating content in moments through natural conversation.</p>
-            </div>
-
-            {/* App screenshot */}
-            <div className="in-hidden card-hover rounded-3xl overflow-hidden ring-1 ring-white/10 shadow-2xl" style={{minHeight:"260px"}}>
-              <Image src="/chat-screenshot.png" alt="Aorta app" width={900} height={560} className="w-full h-full object-cover object-top"/>
-            </div>
-
-            {/* Integrate */}
-            <div className="in-hidden card-hover rounded-3xl p-8 flex flex-col justify-between" style={{background:"linear-gradient(135deg,#1a1a2e,#2d1b4e)", minHeight:"220px", border:"1px solid rgba(249,112,96,0.2)"}}>
-              <div>
-                <div className="w-11 h-11 bg-white/10 rounded-xl flex items-center justify-center mb-5">
-                  <GDrive/>
+                <h2 className="text-4xl font-bold text-gray-900 mb-5 leading-tight">
+                  Track your impact<br/>across every platform
+                </h2>
+                <p className="text-gray-500 leading-relaxed mb-6">
+                  See how your content performs in real time. Aorta connects directly to your social platforms so you always know what&apos;s resonating with your community.
+                </p>
+                <div className="flex flex-col gap-3">
+                  {[
+                    { icon:"▶", platform:"YouTube", desc:"Subscribers, views & recent videos" },
+                    { icon:"f", platform:"Facebook", desc:"Reach, engagement & post performance" },
+                    { icon:"📷", platform:"Instagram", desc:"Followers, likes & story stats" },
+                    { icon:"♪", platform:"TikTok", desc:"Views, shares & trending content" },
+                  ].map(p => (
+                    <div key={p.platform} className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 border border-gray-100">
+                      <div className="w-9 h-9 bg-[#f97060]/10 rounded-lg flex items-center justify-center text-sm font-bold text-[#f97060]">{p.icon}</div>
+                      <div>
+                        <div className="text-sm font-semibold text-gray-900">{p.platform}</div>
+                        <div className="text-xs text-gray-400">{p.desc}</div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-                <h3 className="text-2xl font-bold text-white mb-3">Integrate Your Data</h3>
-                <p className="text-gray-400 text-sm leading-relaxed">Integrates directly with Google Drive — pulls context from your files automatically.</p>
               </div>
-            </div>
 
-            {/* Track */}
-            <div className="in-hidden card-hover rounded-3xl p-8 flex flex-col justify-end" style={{background:"linear-gradient(135deg,#1a2a1a,#1a4020)", minHeight:"220px", border:"1px solid rgba(249,200,74,0.2)"}}>
-              <div className="w-11 h-11 bg-white/10 rounded-xl flex items-center justify-center mb-5">
-                <Image src="/icons/social-media.png" alt="" width={22} height={22}/>
+              {/* Right: screenshot */}
+              <div className="card-hover rounded-3xl overflow-hidden shadow-2xl ring-4 ring-[#f97060]/10">
+                <div className="bg-gradient-to-r from-[#f97060] to-[#f9c84a] px-5 py-3 flex items-center gap-2">
+                  <div className="w-2.5 h-2.5 rounded-full bg-white/40"/>
+                  <div className="w-2.5 h-2.5 rounded-full bg-white/40"/>
+                  <div className="w-2.5 h-2.5 rounded-full bg-white/40"/>
+                  <span className="ml-2 text-white/70 text-xs font-medium">Social Media Stats</span>
+                </div>
+                <Image src="/social-stats.png" alt="Social Media Stats Dashboard" width={900} height={560} className="w-full h-auto"/>
               </div>
-              <h3 className="text-2xl font-bold text-white mb-3">Track Your Impact</h3>
-              <p className="text-gray-400 text-sm leading-relaxed">Built-in social media stats so you always know what&apos;s resonating with your community.</p>
-            </div>
 
+            </div>
           </div>
         </section>
 
