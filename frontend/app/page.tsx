@@ -85,24 +85,24 @@ export default function LandingPage() {
           />
 
           {/* Badge */}
-          <div className="relative z-10 bg-white/30 backdrop-blur-md border border-white/50 px-4 py-1.5 rounded-full text-sm text-white/90 mb-8 shadow-sm">
+          <div className="relative z-10 bg-white/70 backdrop-blur-md border border-gray-200 px-4 py-1.5 rounded-full text-sm text-gray-600 mb-8 shadow-sm">
             Keep Ideas Flowing
           </div>
 
           {/* Headline */}
-          <h1 className="relative z-10 text-6xl font-bold text-white leading-tight max-w-2xl drop-shadow-sm">
+          <h1 className="relative z-10 text-6xl font-bold text-gray-900 leading-tight max-w-2xl">
             Keep your mission<br />moving with Aorta
           </h1>
 
           {/* Subtext */}
-          <p className="relative z-10 mt-5 text-white/70 max-w-md text-sm leading-relaxed">
+          <p className="relative z-10 mt-5 text-gray-500 max-w-md text-sm leading-relaxed">
             Streamline your organization&apos;s communication and reporting with our AI assistant designed for community-focused work.
           </p>
 
           {/* CTA */}
           <Link
             href="/chat"
-            className="relative z-10 mt-8 bg-white hover:bg-gray-50 text-gray-900 font-medium px-8 py-3 rounded-full text-sm transition-colors shadow-md border border-white/80"
+            className="relative z-10 mt-8 bg-white hover:bg-gray-50 text-gray-900 font-medium px-8 py-3 rounded-full text-sm transition-colors shadow-md border border-gray-200"
           >
             Try Aorta
           </Link>
