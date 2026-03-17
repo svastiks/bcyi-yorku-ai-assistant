@@ -68,41 +68,40 @@ export default function LandingPage() {
 
         {/* Hero */}
         <section className="relative flex flex-col items-center text-center px-8 pt-12 pb-40 overflow-hidden">
-          {/* Coral glow blob */}
+          {/* Coral glow blob — large enough to cover all hero text */}
           <div
             className="absolute pointer-events-none"
             style={{
-              width: "700px",
-              height: "520px",
+              width: "900px",
+              height: "700px",
               top: "50%",
               left: "50%",
-              transform: "translate(-50%, -38%)",
+              transform: "translate(-50%, -45%)",
               background:
-                "radial-gradient(ellipse at center, #e8756a 0%, #f4a090 30%, #fad0c8 60%, transparent 80%)",
-              filter: "blur(8px)",
+                "radial-gradient(ellipse at center, #d9635a 0%, #e8837a 25%, #f4a89e 50%, #fad4ce 70%, transparent 88%)",
               borderRadius: "50%",
             }}
           />
 
           {/* Badge */}
-          <div className="relative z-10 bg-white/70 backdrop-blur-md border border-gray-200 px-4 py-1.5 rounded-full text-sm text-gray-600 mb-8 shadow-sm">
+          <div className="relative z-10 bg-white/20 backdrop-blur-md border border-white/40 px-4 py-1.5 rounded-full text-sm text-white mb-8">
             Keep Ideas Flowing
           </div>
 
           {/* Headline */}
-          <h1 className="relative z-10 text-6xl font-bold text-gray-900 leading-tight max-w-2xl">
+          <h1 className="relative z-10 text-6xl font-bold text-white leading-tight max-w-2xl">
             Keep your mission<br />moving with Aorta
           </h1>
 
           {/* Subtext */}
-          <p className="relative z-10 mt-5 text-gray-500 max-w-md text-sm leading-relaxed">
+          <p className="relative z-10 mt-5 text-white/75 max-w-md text-sm leading-relaxed">
             Streamline your organization&apos;s communication and reporting with our AI assistant designed for community-focused work.
           </p>
 
           {/* CTA */}
           <Link
             href="/chat"
-            className="relative z-10 mt-8 bg-white hover:bg-gray-50 text-gray-900 font-medium px-8 py-3 rounded-full text-sm transition-colors shadow-md border border-gray-200"
+            className="relative z-10 mt-8 bg-white hover:bg-white/90 text-gray-800 font-medium px-8 py-3 rounded-full text-sm transition-colors shadow-sm"
           >
             Try Aorta
           </Link>
