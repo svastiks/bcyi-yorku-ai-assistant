@@ -206,24 +206,48 @@ export default function LandingPage() {
 
           <div className="max-w-5xl mx-auto grid grid-cols-2 gap-4">
 
-            {/* Chat With Aorta — screenshot card */}
-            <div ref={r8} className="in-hidden card-hover rounded-3xl overflow-hidden shadow-2xl" style={{minHeight:"320px"}}>
-              <Image src="/chat-conversation.png" alt="Chat with Aorta" width={900} height={560} className="w-full h-full object-cover object-top"/>
+            {/* Chat With Aorta — screenshot + text at bottom */}
+            <div ref={r8} className="in-hidden card-hover rounded-3xl overflow-hidden shadow-2xl flex flex-col" style={{background:"rgba(255,255,255,0.1)", minHeight:"360px"}}>
+              <div className="flex-1 overflow-hidden">
+                <Image src="/chat-conversation.png" alt="Chat with Aorta" width={900} height={500} className="w-full object-cover object-top"/>
+              </div>
+              <div className="p-6">
+                <h3 className="text-xl font-bold text-white mb-1">Chat With Aorta</h3>
+                <p className="text-white/70 text-sm leading-relaxed">Aorta responds like a teammate, generating newsletters, blog posts, donor emails, social media captions and in moments.</p>
+              </div>
             </div>
 
-            {/* Content Types — screenshot card */}
-            <div ref={r9} className="in-hidden card-hover rounded-3xl overflow-hidden shadow-2xl" style={{minHeight:"320px"}}>
-              <Image src="/content-types-card.png" alt="Content Types" width={700} height={900} className="w-full h-full object-cover object-top"/>
+            {/* Content Types — text at top + screenshot at bottom */}
+            <div ref={r9} className="in-hidden card-hover rounded-3xl overflow-hidden shadow-2xl flex flex-col" style={{background:"#f9c84a", minHeight:"360px"}}>
+              <div className="p-6 pb-3">
+                <h3 className="text-xl font-bold text-gray-900 mb-1">Content Types</h3>
+                <p className="text-gray-700 text-sm leading-relaxed">Aorta creates polished, on-brand content for every format your team needs.</p>
+              </div>
+              <div className="flex-1 overflow-hidden">
+                <Image src="/content-types-card.png" alt="Content Types" width={700} height={600} className="w-full h-full object-cover object-top"/>
+              </div>
             </div>
 
-            {/* Integrate Your Data — illustration card */}
-            <div ref={r10} className="in-hidden card-hover rounded-3xl overflow-hidden shadow-2xl" style={{minHeight:"280px"}}>
-              <Image src="/drive-illustration.png" alt="Google Drive Integration" width={700} height={700} className="w-full h-full object-cover object-center"/>
+            {/* Integrate Your Data — text + illustration */}
+            <div ref={r10} className="in-hidden card-hover rounded-3xl overflow-hidden shadow-2xl flex flex-col" style={{background:"#f9c84a", minHeight:"300px"}}>
+              <div className="p-6 pb-2">
+                <h3 className="text-xl font-bold text-gray-900 mb-1">Integrate Your Data</h3>
+                <p className="text-gray-700 text-sm leading-relaxed">Aorta integrates directly with Google Drive — pulling context from your files and organizing your documents.</p>
+              </div>
+              <div className="flex-1 overflow-hidden flex items-center justify-center p-4">
+                <Image src="/drive-illustration.png" alt="Google Drive Integration" width={280} height={280} className="object-contain"/>
+              </div>
             </div>
 
-            {/* Track Your Impact — social stats card */}
-            <div className="in-hidden card-hover rounded-3xl overflow-hidden shadow-2xl" style={{minHeight:"280px"}}>
-              <Image src="/social-stats.png" alt="Social Media Stats" width={900} height={560} className="w-full h-full object-cover object-top"/>
+            {/* Track Your Impact — screenshot + text at bottom */}
+            <div className="in-hidden card-hover rounded-3xl overflow-hidden shadow-2xl flex flex-col" style={{background:"rgba(255,255,255,0.1)", minHeight:"300px"}}>
+              <div className="flex-1 overflow-hidden">
+                <Image src="/social-stats.png" alt="Social Media Stats" width={900} height={400} className="w-full object-cover object-top"/>
+              </div>
+              <div className="p-6">
+                <h3 className="text-xl font-bold text-white mb-1">Track Your Impact</h3>
+                <p className="text-white/70 text-sm leading-relaxed">See how your content performs across platforms with built-in social media stats, so you always know what&apos;s resonating with your community.</p>
+              </div>
             </div>
 
           </div>
