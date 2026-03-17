@@ -223,17 +223,24 @@ export default function LandingPage() {
               </div>
             </div>
 
-            {/* Content Types — yellow card, screenshot fades in, white text */}
+            {/* Content Types — text at top, sidebar screenshot at bottom */}
             <div ref={r9} className="in-hidden card-hover rounded-3xl overflow-hidden shadow-2xl flex flex-col" style={{background:"#f9c84a", minHeight:"360px"}}>
-              <div className="relative">
-                <Image src="/content-types-card.png" alt="Content Types" width={700} height={420} className="w-full object-cover object-top" style={{maxHeight:"240px"}}/>
-                <div className="absolute inset-0" style={{background:"linear-gradient(to bottom, transparent 40%, #f9c84a 100%)"}}/>
-              </div>
-              <div className="px-7 pb-7 -mt-4 relative z-10">
+              <div className="px-7 pt-7 pb-4 text-center">
                 <h3 className="text-2xl font-bold text-white mb-2">Content Types</h3>
                 <p className="text-white/85 text-sm leading-relaxed">
-                  Aorta creates polished, on-brand content for every format your team needs — newsletters, blog posts, donor emails, and more.
+                  Aorta creates polished, on-brand content for every format your team needs.
                 </p>
+              </div>
+              <div className="flex-1 relative overflow-hidden mx-4 mb-0 rounded-t-2xl">
+                <Image
+                  src="/content-types-sidebar.png"
+                  alt="Content Types"
+                  width={600}
+                  height={500}
+                  className="w-full object-cover object-top rounded-t-2xl"
+                />
+                {/* fade bottom into yellow */}
+                <div className="absolute bottom-0 left-0 right-0 h-12" style={{background:"linear-gradient(to bottom, transparent, #f9c84a)"}}/>
               </div>
             </div>
 
