@@ -2,7 +2,7 @@
 "use client";
 
 import React from "react";
-
+import Link from "next/link";
 import { useState, useRef, useEffect } from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,7 @@ import {
   ImagePlus,
   HardDrive,
   X,
+  HelpCircle,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { cn } from "@/lib/utils";
@@ -1145,6 +1146,17 @@ export default function ChatPage() {
                   </Button>
                 )}
               </div>
+
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Link href="/">
+                    <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
+                      <HelpCircle className="w-5 h-5" />
+                    </Button>
+                  </Link>
+                </TooltipTrigger>
+                <TooltipContent>How it works</TooltipContent>
+              </Tooltip>
 
               <ThemeToggle />
             </div>
