@@ -50,20 +50,20 @@ export default function LandingPage() {
         .float { animation: float 4s ease-in-out infinite; }
         .card-hover { transition: transform .25s ease, box-shadow .25s ease; }
         .card-hover:hover { transform:translateY(-5px); box-shadow:0 24px 50px rgba(0,0,0,0.18); }
-        .gradient-border { background: linear-gradient(white,white) padding-box, linear-gradient(135deg,#f97060,#f9c84a) border-box; border:2px solid transparent; }
+        .gradient-border { background: linear-gradient(#ffffff0d,#ffffff0d) padding-box, linear-gradient(135deg,#f97060,#f9c84a) border-box; border:2px solid transparent; }
       `}</style>
 
-      <div className="min-h-screen bg-white font-sans antialiased overflow-x-hidden">
+      <div className="min-h-screen bg-[#fef8f5] font-sans antialiased overflow-x-hidden">
 
         {/* ─── NAV ─── */}
-        <nav className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-8 py-4 bg-white/80 backdrop-blur-xl border-b border-gray-100/60">
+        <nav className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-8 py-4 bg-[#fef8f5]/85 backdrop-blur-xl border-b border-[#f5d8d0]/50">
           <div className="flex items-center gap-2">
             <Image src="/icons/aorta-heart.png" alt="Aorta" width={30} height={30} />
             <span className="font-bold text-gray-900 text-lg">Aorta</span>
           </div>
           <div className="flex items-center gap-3">
-            <Link href="#how" className="text-sm text-gray-500 hover:text-gray-900 transition-colors hidden sm:block">How it works</Link>
-            <Link href="#features" className="text-sm text-gray-500 hover:text-gray-900 transition-colors hidden sm:block">Features</Link>
+            <Link href="#how" className="text-sm text-[#7a3a30] hover:text-[#1a0808] transition-colors hidden sm:block">How it works</Link>
+            <Link href="#features" className="text-sm text-[#7a3a30] hover:text-[#1a0808] transition-colors hidden sm:block">Features</Link>
             <Link href="/chat" className="bg-[#f97060] hover:bg-[#e8604f] text-white font-semibold px-5 py-2 rounded-full text-sm transition-all shadow-md hover:shadow-lg">
               Try Aorta →
             </Link>
@@ -75,38 +75,38 @@ export default function LandingPage() {
 
           {/* Background blobs */}
           <div className="blob absolute pointer-events-none" style={{
-            width:"820px", height:"680px", top:"50%", left:"50%",
-            background:"radial-gradient(ellipse at center,#c8413a 0%,#e8706a 22%,#f5a09a 50%,#fbd4d0 70%,transparent 86%)",
-            borderRadius:"50%", opacity:0.95
+            width:"1100px", height:"940px", top:"50%", left:"50%",
+            background:"radial-gradient(ellipse at center,#f5b8b0 0%,#f8ccc6 25%,#faddda 50%,#fdecea 72%,#fef5f3 88%,#fef8f5 98%)",
+            borderRadius:"50%"
           }}/>
           <div className="blob2 absolute pointer-events-none" style={{
-            width:"300px", height:"300px", top:"15%", left:"8%",
-            background:"radial-gradient(circle,#f9c84a55 0%,transparent 70%)", borderRadius:"50%"
+            width:"380px", height:"380px", top:"12%", left:"5%",
+            background:"radial-gradient(circle,#f9c84a30 0%,transparent 70%)", borderRadius:"50%"
           }}/>
           <div className="blob2 absolute pointer-events-none" style={{
-            width:"200px", height:"200px", bottom:"20%", right:"10%",
-            background:"radial-gradient(circle,#f9706055 0%,transparent 70%)", borderRadius:"50%"
+            width:"260px", height:"260px", bottom:"18%", right:"8%",
+            background:"radial-gradient(circle,#f9706030 0%,transparent 70%)", borderRadius:"50%"
           }}/>
 
           {/* Badge */}
-          <div className="relative z-10 inline-flex items-center gap-2 bg-white/20 backdrop-blur-md border border-white/35 px-4 py-1.5 rounded-full text-sm text-white mb-7">
-            <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse"/>
+          <div className="relative z-10 inline-flex items-center gap-2 bg-[#f97060]/12 backdrop-blur-md border border-[#f97060]/25 px-4 py-1.5 rounded-full text-sm text-[#a83428] mb-7">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#f97060] animate-pulse"/>
             Built for nonprofits
           </div>
 
-          <h1 className="relative z-10 text-6xl md:text-7xl font-bold text-white leading-[1.08] max-w-3xl mb-6" style={{textShadow:"0 2px 20px rgba(0,0,0,0.1)"}}>
-            Keep your mission<br/>moving with <span className="italic">Aorta</span>
+          <h1 className="relative z-10 text-6xl md:text-7xl font-bold text-[#1a0808] leading-[1.08] max-w-3xl mb-6">
+            Keep your mission<br/>moving with <span className="italic text-[#c8413a]">Aorta</span>
           </h1>
 
-          <p className="relative z-10 text-white/75 max-w-md text-base leading-relaxed mb-9">
+          <p className="relative z-10 text-[#6b2828] max-w-md text-base leading-relaxed mb-9">
             AI-powered content creation for newsletters, donor emails, blog posts, and social media — designed for community-focused organizations.
           </p>
 
           <div className="relative z-10 flex flex-col sm:flex-row items-center gap-3">
-            <Link href="/chat" className="bg-white text-gray-900 font-bold px-8 py-3.5 rounded-full text-sm shadow-xl hover:shadow-2xl hover:-translate-y-0.5 transition-all">
+            <Link href="/chat" className="bg-[#c8413a] hover:bg-[#b83530] text-white font-bold px-8 py-3.5 rounded-full text-sm shadow-xl hover:shadow-2xl hover:-translate-y-0.5 transition-all">
               Start creating for free →
             </Link>
-            <Link href="#how" className="text-white/80 hover:text-white text-sm transition-colors border border-white/30 px-6 py-3.5 rounded-full hover:bg-white/10">
+            <Link href="#how" className="text-[#6b2828] hover:text-[#1a0808] text-sm transition-colors border border-[#c8413a]/35 px-6 py-3.5 rounded-full hover:bg-[#c8413a]/8">
               See how it works
             </Link>
           </div>
@@ -120,7 +120,7 @@ export default function LandingPage() {
               { label:"Social Media", icon:"/icons/social-media.png" },
               { label:"General", icon:"/icons/general.png" },
             ].map(t => (
-              <span key={t.label} className="float flex items-center gap-1.5 bg-white/18 backdrop-blur-sm border border-white/30 text-white text-xs px-3.5 py-2 rounded-full font-medium">
+              <span key={t.label} className="float flex items-center gap-1.5 bg-white/60 backdrop-blur-sm border border-[#c8413a]/20 text-[#7a2828] text-xs px-3.5 py-2 rounded-full font-medium">
                 <Image src={t.icon} alt="" width={14} height={14} />
                 {t.label}
               </span>
@@ -128,14 +128,14 @@ export default function LandingPage() {
           </div>
 
           {/* Scroll hint */}
-          <div className="relative z-10 absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 text-white/50 text-xs">
+          <div className="relative z-10 absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 text-[#c8413a]/50 text-xs">
             <span>scroll</span>
-            <div className="w-px h-8 bg-white/30"/>
+            <div className="w-px h-8 bg-[#c8413a]/25"/>
           </div>
         </section>
 
         {/* ─── SOCIAL PROOF STRIP ─── */}
-        <div ref={r1} className="in-hidden bg-[#fff8f7] border-y border-[#fde8e4] py-5 px-8">
+        <div ref={r1} className="in-hidden bg-[#faede8] border-y border-[#f5cfc8] py-5 px-8">
           <div className="max-w-5xl mx-auto flex flex-wrap justify-center gap-8 text-sm text-gray-500">
             {[
               { val:"5", label:"Content Types" },
@@ -152,7 +152,7 @@ export default function LandingPage() {
         </div>
 
         {/* ─── SCREENSHOT ─── */}
-        <section className="px-8 py-24 bg-white">
+        <section className="px-8 py-24 bg-[#fef8f5]">
           <div ref={r2} className="in-hidden max-w-5xl mx-auto">
             <div className="float rounded-3xl overflow-hidden shadow-2xl ring-4 ring-[#f97060]/15">
               <div className="bg-gradient-to-r from-[#f97060] to-[#f9c84a] px-5 py-3.5 flex items-center gap-2">
@@ -183,12 +183,12 @@ export default function LandingPage() {
             ].map((s, i) => {
               const refs = [r4, r5, r6]
               return (
-                <div key={s.num} ref={refs[i]} className="in-hidden card-hover gradient-border rounded-2xl p-7 bg-white/5">
+                <div key={s.num} ref={refs[i]} className="in-hidden card-hover rounded-2xl p-7 bg-white/[0.07] border border-white/10">
                   <div className={`inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-gradient-to-br ${s.color} text-white font-bold text-sm mb-5 shadow-lg`}>
                     {s.num}
                   </div>
                   <h3 className="font-bold text-white text-lg mb-2">{s.title}</h3>
-                  <p className="text-gray-400 text-sm leading-relaxed">{s.desc}</p>
+                  <p className="text-gray-300 text-sm leading-relaxed">{s.desc}</p>
                 </div>
               )
             })}
@@ -206,61 +206,60 @@ export default function LandingPage() {
 
           <div className="max-w-5xl mx-auto grid grid-cols-2 gap-4">
 
-            {/* Chat With Aorta — yellow card, screenshot fades into yellow, white text */}
-            <div ref={r8} className="in-hidden card-hover rounded-3xl overflow-hidden shadow-2xl flex flex-col" style={{background:"#f9c84a", minHeight:"360px"}}>
-              {/* Screenshot with gradient fade into yellow */}
-              <div className="relative">
-                <Image src="/chat-conversation.png" alt="Chat with Aorta" width={900} height={420} className="w-full object-cover object-top" style={{maxHeight:"240px"}}/>
-                {/* Gradient overlay: transparent → yellow */}
-                <div className="absolute inset-0" style={{background:"linear-gradient(to bottom, transparent 40%, #f9c84a 100%)"}}/>
+            {/* Chat With Aorta */}
+            <div ref={r8} className="in-hidden card-hover rounded-3xl overflow-hidden shadow-2xl flex flex-col" style={{background:"#f9c84a", height:"400px"}}>
+              {/* Fixed-height image area — always fills exactly, no gap */}
+              <div className="relative flex-shrink-0" style={{height:"220px"}}>
+                <Image src="/chat-conversation.png" alt="Chat with Aorta" fill className="object-cover object-top"/>
+                <div className="absolute inset-0" style={{background:"linear-gradient(to bottom, transparent 50%, #f9c84a 100%)"}}/>
               </div>
-              {/* Text */}
-              <div className="px-7 pb-7 -mt-4 relative z-10">
-                <h3 className="text-2xl font-bold text-white mb-2">Chat With Aorta</h3>
-                <p className="text-white/85 text-sm leading-relaxed">
+              <div className="px-7 pb-7 pt-3 flex-1">
+                <h3 className="text-xl font-bold text-gray-900 mb-2">Chat With Aorta</h3>
+                <p className="text-gray-800 text-sm leading-relaxed">
                   Aorta responds like a teammate — generating newsletters, blog posts, donor emails, and social media captions in moments.
                 </p>
               </div>
             </div>
 
-            {/* Content Types — text at top, sidebar screenshot at bottom */}
-            <div ref={r9} className="in-hidden card-hover rounded-3xl overflow-hidden shadow-2xl flex flex-col" style={{background:"#f9c84a", minHeight:"360px"}}>
-              <div className="px-7 pt-7 pb-4 text-center">
-                <h3 className="text-2xl font-bold text-white mb-2">Content Types</h3>
-                <p className="text-white/85 text-sm leading-relaxed">
+            {/* Content Types */}
+            <div ref={r9} className="in-hidden card-hover rounded-3xl overflow-hidden shadow-2xl flex flex-col" style={{background:"#f9c84a", height:"400px"}}>
+              <div className="px-7 pt-7 pb-3 flex-shrink-0">
+                <h3 className="text-xl font-bold text-gray-900 mb-2">Content Types</h3>
+                <p className="text-gray-800 text-sm leading-relaxed">
                   Aorta creates polished, on-brand content for every format your team needs.
                 </p>
               </div>
-              <div className="flex justify-center px-6 pb-4">
+              <div className="flex-1 flex items-center justify-center px-6 pb-5 overflow-hidden">
                 <Image
                   src="/content-types-sidebar.png"
                   alt="Content Types"
-                  width={260}
-                  height={320}
-                  className="object-contain rounded-2xl"
+                  width={230}
+                  height={280}
+                  className="object-contain rounded-2xl w-auto"
+                  style={{maxHeight:"240px"}}
                 />
               </div>
             </div>
 
-            {/* Integrate Your Data — text + illustration (no text in image) */}
-            <div ref={r10} className="in-hidden card-hover rounded-3xl overflow-hidden shadow-2xl flex flex-col" style={{background:"#f9c84a", minHeight:"300px"}}>
-              <div className="p-7">
+            {/* Integrate Your Data */}
+            <div ref={r10} className="in-hidden card-hover rounded-3xl overflow-hidden shadow-2xl flex flex-col" style={{background:"#f9c84a", height:"400px"}}>
+              <div className="px-7 pt-7 pb-3 flex-shrink-0">
                 <h3 className="text-xl font-bold text-gray-900 mb-2">Integrate Your Data</h3>
-                <p className="text-gray-700 text-sm leading-relaxed">Aorta integrates directly with Google Drive — pulling context from your files and organizing your documents automatically.</p>
+                <p className="text-gray-800 text-sm leading-relaxed">Aorta integrates directly with Google Drive — pulling context from your files and organizing your documents automatically.</p>
               </div>
-              <div className="flex-1 flex items-center justify-center px-6 pb-4">
-                <Image src="/drive-illustration.png" alt="Google Drive Integration" width={260} height={260} className="object-contain"/>
+              <div className="flex-1 flex items-center justify-center px-6 pb-5 overflow-hidden">
+                <Image src="/drive-illustration.png" alt="Google Drive Integration" width={230} height={230} className="object-contain w-auto" style={{maxHeight:"240px"}}/>
               </div>
             </div>
 
-            {/* Track Your Impact — screenshot + text overlay (no text in image) */}
-            <div className="in-hidden card-hover rounded-3xl overflow-hidden shadow-2xl flex flex-col" style={{background:"#f9c84a", minHeight:"300px"}}>
-              <div className="p-7">
+            {/* Track Your Impact */}
+            <div className="in-hidden card-hover rounded-3xl overflow-hidden shadow-2xl flex flex-col" style={{background:"#f9c84a", height:"400px"}}>
+              <div className="px-7 pt-7 pb-3 flex-shrink-0">
                 <h3 className="text-xl font-bold text-gray-900 mb-2">Track Your Impact</h3>
-                <p className="text-gray-700 text-sm leading-relaxed">See how your content performs across platforms with built-in social media stats — so you always know what&apos;s resonating.</p>
+                <p className="text-gray-800 text-sm leading-relaxed">See how your content performs across platforms with built-in social media stats — so you always know what&apos;s resonating.</p>
               </div>
-              <div className="flex-1 overflow-hidden mx-4 mb-4 rounded-2xl shadow-md">
-                <Image src="/social-stats.png" alt="Social Media Stats" width={900} height={400} className="w-full object-cover object-top"/>
+              <div className="relative flex-1 overflow-hidden mx-4 mb-4 rounded-2xl shadow-md">
+                <Image src="/social-stats.png" alt="Social Media Stats" fill className="object-cover object-top"/>
               </div>
             </div>
 
@@ -268,7 +267,7 @@ export default function LandingPage() {
         </section>
 
         {/* ─── SOCIAL MEDIA ANALYTICS SECTION ─── */}
-        <section className="px-8 py-24 bg-white">
+        <section className="px-8 py-24 bg-[#fef8f5]">
           <div className="max-w-5xl mx-auto">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
 
@@ -280,7 +279,7 @@ export default function LandingPage() {
                 <h2 className="text-4xl font-bold text-gray-900 mb-5 leading-tight">
                   Track your impact<br/>across every platform
                 </h2>
-                <p className="text-gray-500 leading-relaxed mb-6">
+                <p className="text-gray-700 leading-relaxed mb-6">
                   See how your content performs in real time. Aorta connects directly to your social platforms so you always know what&apos;s resonating with your community.
                 </p>
                 <div className="flex flex-col gap-3">
@@ -289,11 +288,11 @@ export default function LandingPage() {
                     { icon:"f", platform:"Facebook", desc:"Reach, engagement & post performance" },
                     { icon:"📷", platform:"Instagram", desc:"Followers, likes & story stats" },
                   ].map(p => (
-                    <div key={p.platform} className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 border border-gray-100">
+                    <div key={p.platform} className="flex items-center gap-3 p-3 rounded-xl bg-[#faeae5] border border-[#f5d0c8]">
                       <div className="w-9 h-9 bg-[#f97060]/10 rounded-lg flex items-center justify-center text-sm font-bold text-[#f97060]">{p.icon}</div>
                       <div>
                         <div className="text-sm font-semibold text-gray-900">{p.platform}</div>
-                        <div className="text-xs text-gray-400">{p.desc}</div>
+                        <div className="text-xs text-gray-600">{p.desc}</div>
                       </div>
                     </div>
                   ))}
@@ -316,15 +315,15 @@ export default function LandingPage() {
         </section>
 
         {/* ─── FINAL CTA ─── */}
-        <section className="px-8 py-24 bg-white">
+        <section className="px-8 py-24 bg-[#fef8f5]">
           <div className="max-w-3xl mx-auto text-center">
             <div className="relative rounded-3xl px-10 py-16 overflow-hidden" style={{background:"linear-gradient(135deg,#f97060 0%,#f9c84a 100%)"}}>
               {/* Decorative circles */}
               <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-white/10"/>
               <div className="absolute -bottom-8 -left-8 w-28 h-28 rounded-full bg-white/10"/>
               <div className="relative z-10">
-                <h2 className="text-4xl font-bold text-white mb-4">Ready to get started?</h2>
-                <p className="text-white/80 mb-8 leading-relaxed max-w-sm mx-auto text-sm">
+                <h2 className="text-4xl font-bold text-gray-900 mb-4">Ready to get started?</h2>
+                <p className="text-gray-800 mb-8 leading-relaxed max-w-sm mx-auto text-sm">
                   Built for small, youth-led nonprofits. Spend less time writing and more time with the people who matter.
                 </p>
                 <Link href="/chat" className="inline-block bg-white text-[#f97060] font-bold px-10 py-4 rounded-full text-base transition-all shadow-xl hover:shadow-2xl hover:-translate-y-1 hover:scale-105">
@@ -336,22 +335,6 @@ export default function LandingPage() {
         </section>
 
         {/* ─── FOOTER ─── */}
-        <footer className="bg-[#0f0f14] px-8 py-10">
-          <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
-            <div>
-              <div className="flex items-center gap-2 mb-2">
-                <Image src="/icons/aorta-heart.png" alt="Aorta" width={22} height={22}/>
-                <span className="font-bold text-white">Aorta</span>
-              </div>
-              <p className="text-gray-500 text-xs max-w-xs leading-relaxed">
-                AI content assistant for youth-led nonprofits. Built with Black Creek Youth Initiative & York University.
-              </p>
-            </div>
-            <Link href="/chat" className="bg-[#f97060] hover:bg-[#e8604f] text-white font-semibold px-6 py-2.5 rounded-full text-sm transition-colors shadow-lg">
-              Try Aorta
-            </Link>
-          </div>
-        </footer>
 
       </div>
     </>
