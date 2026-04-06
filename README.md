@@ -12,7 +12,6 @@ https://github.com/user-attachments/assets/b67f9da5-6e71-4a84-b43f-c0c493863227
 
 - FastAPI
 - Python
-- MongoDB
 - Next.js
 - Typescript
 - TailwindCSS
