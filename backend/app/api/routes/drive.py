@@ -1,11 +1,13 @@
 """Google Drive management API endpoints"""
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import RedirectResponse, Response
+from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
 from app.services.google_drive import GoogleDriveService
 from app.services.file_sorter import FileSorter
 from app.utils.auth import GoogleAuthHandler
 from app.config import settings
-from typing import Optional, Dict
+from typing import Optional, Dict, Tuple
 from datetime import datetime
 import json
 import os
@@ -30,10 +32,40 @@ def get_oauth_credentials():
         if not token:
             return None
         creds = GoogleAuthHandler.create_credentials_from_token(token)
-        creds = GoogleAuthHandler.refresh_token_if_needed(creds)
-        return creds
     except Exception:
         return None
+    try:
+        creds = GoogleAuthHandler.refresh_token_if_needed(creds)
+    except Exception:
+        return None
+    try:
+        if not creds.valid:
+            return None
+    except Exception:
+        return None
+    return creds
+
+
+def _drive_token_probe(creds) -> Tuple[bool, bool]:
+    """
+    Hit Drive API once. Returns (ok, should_delete_stored_credentials).
+    If Google rejects the token (401), drop the local file so the UI matches reality.
+    """
+    try:
+        service = build("drive", "v3", credentials=creds, cache_discovery=False)
+        service.files().list(pageSize=1, fields="files(id)").execute()
+        return True, False
+    except HttpError as e:
+        code = getattr(e.resp, "status", None) if e.resp is not None else None
+        try:
+            code_int = int(code) if code is not None else None
+        except (TypeError, ValueError):
+            code_int = None
+        if code_int == 401:
+            return False, True
+        return False, False
+    except Exception:
+        return False, False
 
 
 def get_drive_credentials():
@@ -84,9 +116,21 @@ async def auth_callback(code: Optional[str] = None, state: Optional[str] = None)
 
 @router.get("/auth/status")
 async def auth_status():
-    """Return whether user has connected Google Drive (OAuth)."""
+    """Return whether Drive is usable — stored token must pass a real Drive API call."""
     creds = get_oauth_credentials()
-    return {"connected": creds is not None}
+    if creds is None:
+        return {"connected": False}
+    ok, purge = _drive_token_probe(creds)
+    if not ok and purge:
+        try:
+            if os.path.exists(CREDENTIALS_FILE):
+                os.remove(CREDENTIALS_FILE)
+        except OSError:
+            pass
+        return {"connected": False}
+    if not ok:
+        return {"connected": False}
+    return {"connected": True}
 
 
 @router.post("/auth/disconnect")

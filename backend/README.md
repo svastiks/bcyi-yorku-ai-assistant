@@ -1,6 +1,6 @@
-# BCYI x YorkU AI Assistant - Backend
+# Aorta x YorkU AI Assistant - Backend
 
-Python FastAPI backend for the BCYI x YorkU AI Assistant, providing content generation capabilities with Google Drive integration.
+Python FastAPI backend for the Aorta x YorkU AI Assistant, providing content generation capabilities with Google Drive integration.
 
 ## Features
 

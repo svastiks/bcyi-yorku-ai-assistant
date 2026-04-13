@@ -1,4 +1,4 @@
-# Frontend Dockerfile for BCYI AI Assistant
+# Frontend Dockerfile for Aorta AI Assistant
 
 FROM node:20-alpine
 

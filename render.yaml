@@ -2,7 +2,7 @@
 # In Render dashboard set: GEMINI_API_KEY, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, FRONTEND_URL (your Vercel URL), CORS_ORIGINS (same as FRONTEND_URL).
 services:
   - type: web
-    name: bcyi-backend
+    name: aorta-backend
     plan: free
     runtime: python
     rootDir: backend

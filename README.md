@@ -1,4 +1,4 @@
-# BCYI x YorkU AI Assistant
+# Aorta x YorkU AI Assistant
 
 AI-powered content generation assistant for Black Creek Youth Initiative, helping create newsletters, blog posts, donor emails, social media content, and more with context from Google Drive.
 
