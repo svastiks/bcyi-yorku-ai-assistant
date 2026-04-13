@@ -25,6 +25,8 @@ import {
   ChevronLeft,
   ArrowLeft,
   RefreshCw,
+  CheckCircle2,
+  AlertCircle,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { cn } from "@/lib/utils";
@@ -39,9 +41,19 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Switch } from "@/components/ui/switch";
 import {
   Tooltip,
@@ -175,6 +187,170 @@ const LEGACY_CHAT_STORAGE_KEY = "bcyi_chats";
 /** v2: default-open; v1 had many "closed" prefs — bump key once so default is open again */
 const SIDEBAR_OPEN_STORAGE_KEY = "aorta_chat_sidebar_open_v2";
 
+type SortDriveApiResponse = {
+  message?: string;
+  stats?: {
+    total?: number;
+    moved?: number;
+    skipped?: number;
+    already_placed?: number;
+    failed?: number;
+  };
+  files_found?: Array<{ name: string }>;
+  folders_created?: string[];
+  sorted?: Array<{ name: string; target_folder: string }>;
+  skipped?: Array<{ name: string; reason?: string }>;
+  already_placed?: Array<{ name: string; target_folder: string }>;
+  failed?: Array<{ name: string; reason?: string }>;
+};
+
+function skipReasonLabel(reason?: string) {
+  if (reason === "folder") return "Drive folder (not moved by organizer)";
+  return reason || "";
+}
+
+function SortDriveResultBody({ data }: { data: SortDriveApiResponse }) {
+  const st = data.stats;
+  const moved = Array.isArray(data.sorted) ? data.sorted : [];
+  const skipped = Array.isArray(data.skipped) ? data.skipped : [];
+  const alreadyPlaced = Array.isArray(data.already_placed)
+    ? data.already_placed
+    : [];
+  const failed = Array.isArray(data.failed) ? data.failed : [];
+  const folders = Array.isArray(data.folders_created)
+    ? data.folders_created
+    : [];
+
+  const total =
+    typeof st?.total === "number" ? st.total : data.files_found?.length;
+  const movedCount = typeof st?.moved === "number" ? st.moved : moved.length;
+  const skippedCount =
+    typeof st?.skipped === "number" ? st.skipped : skipped.length;
+  const alreadyCount =
+    typeof st?.already_placed === "number"
+      ? st.already_placed
+      : alreadyPlaced.length;
+  const failedCount =
+    typeof st?.failed === "number" ? st.failed : failed.length;
+
+  return (
+    <div className="space-y-4 text-sm text-left">
+      {total != null && (
+        <p className="text-muted-foreground">
+          Aorta uses built-in rules (name patterns and file types) to pick a
+          target folder. Files already in that folder are left as-is.{" "}
+          <span className="text-foreground font-medium">
+            {total} item{total === 1 ? "" : "s"} scanned
+          </span>
+          {movedCount > 0 && (
+            <>
+              ,{" "}
+              <span className="text-foreground font-medium">
+                {movedCount} moved
+              </span>
+            </>
+          )}
+          {alreadyCount > 0 && (
+            <>
+              ,{" "}
+              <span className="text-foreground font-medium">
+                {alreadyCount} already in the right folder
+              </span>
+            </>
+          )}
+          {skippedCount > 0 && (
+            <>
+              ,{" "}
+              <span className="text-foreground font-medium">
+                {skippedCount} not moved (e.g. folder rows)
+              </span>
+            </>
+          )}
+          {failedCount > 0 && (
+            <>
+              ,{" "}
+              <span className="text-destructive font-medium">
+                {failedCount} failed
+              </span>
+            </>
+          )}
+          .
+        </p>
+      )}
+      {folders.length > 0 && (
+        <div>
+          <p className="font-medium text-foreground mb-1.5">Folders</p>
+          <ul className="max-h-28 overflow-y-auto rounded-md border bg-muted/30 px-3 py-2 text-xs text-muted-foreground space-y-0.5 list-disc list-inside">
+            {folders.map((f) => (
+              <li key={f}>{f}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {moved.length > 0 && (
+        <div>
+          <p className="font-medium text-foreground mb-1.5">Moved into folders</p>
+          <ul className="max-h-48 overflow-y-auto rounded-md border bg-muted/30 px-3 py-2 space-y-1.5 text-xs">
+            {moved.map((s) => (
+              <li key={`${s.name}-${s.target_folder}`}>
+                <span className="text-foreground">{s.name}</span>
+                <span className="text-muted-foreground"> → {s.target_folder}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {alreadyPlaced.length > 0 && (
+        <div>
+          <p className="font-medium text-foreground mb-1.5">
+            Already in the right folder
+          </p>
+          <p className="text-xs text-muted-foreground mb-1.5">
+            These files already lived under the folder our rules assign — no API
+            move was needed.
+          </p>
+          <ul className="max-h-40 overflow-y-auto rounded-md border bg-muted/30 px-3 py-2 space-y-1.5 text-xs">
+            {alreadyPlaced.map((s) => (
+              <li key={`${s.name}-${s.target_folder}`}>
+                <span className="text-foreground">{s.name}</span>
+                <span className="text-muted-foreground"> → {s.target_folder}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {skipped.length > 0 && (
+        <div>
+          <p className="font-medium text-foreground mb-1.5">
+            Not moved (folders in results)
+          </p>
+          <ul className="max-h-32 overflow-y-auto rounded-md border bg-muted/30 px-3 py-2 space-y-1 text-xs text-muted-foreground">
+            {skipped.map((s) => (
+              <li key={s.name}>
+                {s.name}
+                {s.reason ? ` — ${skipReasonLabel(s.reason)}` : ""}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {failed.length > 0 && (
+        <div>
+          <p className="font-medium text-destructive mb-1.5">Failed</p>
+          <ul className="max-h-32 overflow-y-auto rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 space-y-1 text-xs">
+            {failed.map((f) => (
+              <li key={f.name}>
+                {f.name}
+                {f.reason ? ` (${f.reason})` : ""}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function loadChatsFromStorage(): {
   sessions: ChatSession[];
   currentId: string | null;
@@ -262,6 +438,14 @@ export default function ChatPage() {
     null,
   );
   const [, setResyncCooldownTick] = useState(0);
+  const [driveActionConfirm, setDriveActionConfirm] = useState<
+    "disconnect" | "sort" | null
+  >(null);
+  const [driveResultDialog, setDriveResultDialog] = useState<{
+    variant: "success" | "error";
+    title: string;
+    body: React.ReactNode;
+  } | null>(null);
   const [mounted, setMounted] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [youtubeData, setYoutubeData] = useState<{
@@ -507,10 +691,28 @@ export default function ChatPage() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("drive_connected") === "1") {
+      setDriveResultDialog({
+        variant: "success",
+        title: "Google Drive connected",
+        body: (
+          <p className="text-muted-foreground">
+            Aorta can read summaries, images, and file context from your Drive.
+            Use the toolbar to attach images or build prompts from event
+            summaries.
+          </p>
+        ),
+      });
       window.history.replaceState({}, "", window.location.pathname);
     }
-    if (params.get("drive_error")) {
-      alert("Drive connect error: " + params.get("drive_error"));
+    const err = params.get("drive_error");
+    if (err) {
+      setDriveResultDialog({
+        variant: "error",
+        title: "Couldn’t connect Google Drive",
+        body: (
+          <p className="text-muted-foreground break-words">{err}</p>
+        ),
+      });
       window.history.replaceState({}, "", window.location.pathname);
     }
 
@@ -877,8 +1079,27 @@ export default function ChatPage() {
       if (!res.ok)
         throw new Error((await res.json()).error || "Disconnect failed");
       setDriveConnected(false);
+      setDriveResultDialog({
+        variant: "success",
+        title: "Disconnected from Google Drive",
+        body: (
+          <p className="text-muted-foreground">
+            Aorta no longer has access to your account for this app. Nothing was
+            deleted in Drive. Reconnect anytime from the toolbar to use
+            summaries, images, and context again.
+          </p>
+        ),
+      });
     } catch (e) {
-      alert(e instanceof Error ? e.message : "Disconnect failed");
+      setDriveResultDialog({
+        variant: "error",
+        title: "Disconnect failed",
+        body: (
+          <p className="text-muted-foreground">
+            {e instanceof Error ? e.message : "Disconnect failed"}
+          </p>
+        ),
+      });
     }
   };
 
@@ -889,7 +1110,15 @@ export default function ChatPage() {
       if (!res.ok) throw new Error(data.error || "Failed to get auth URL");
       window.location.href = data.url;
     } catch (e) {
-      alert(e instanceof Error ? e.message : "Connect failed");
+      setDriveResultDialog({
+        variant: "error",
+        title: "Couldn’t start Google sign-in",
+        body: (
+          <p className="text-muted-foreground">
+            {e instanceof Error ? e.message : "Connect failed"}
+          </p>
+        ),
+      });
     }
   };
 
@@ -925,50 +1154,34 @@ export default function ChatPage() {
     setSorting(true);
     try {
       const res = await fetch("/api/drive/sort", { method: "POST" });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Sort failed");
-      const lines = [data.message, ""];
-      if (data.stats) lines.push(`Stats: ${JSON.stringify(data.stats)}`);
-      if (data.files_found?.length)
-        lines.push(
-          "Files found: " +
-            data.files_found.map((f: { name: string }) => f.name).join(", "),
-        );
-      if (data.folders_created?.length)
-        lines.push("Folders created: " + data.folders_created.join(", "));
-      if (data.sorted?.length)
-        lines.push(
-          "Sorted: " +
-            data.sorted
-              .map(
-                (s: { name: string; target_folder: string }) =>
-                  `${s.name} → ${s.target_folder}`,
-              )
-              .join("; "),
-        );
-      if (data.skipped?.length)
-        lines.push(
-          "Skipped: " +
-            data.skipped
-              .map(
-                (s: { name: string; reason?: string }) =>
-                  s.name + (s.reason ? ` (${s.reason})` : ""),
-              )
-              .join(", "),
-        );
-      if (data.failed?.length)
-        lines.push(
-          "Failed: " +
-            data.failed
-              .map(
-                (f: { name: string; reason?: string }) =>
-                  f.name + (f.reason ? ` (${f.reason})` : ""),
-              )
-              .join(", "),
-        );
-      alert(lines.join("\n"));
+      const data = (await res.json()) as SortDriveApiResponse & {
+        error?: string;
+        detail?: string;
+      };
+      if (!res.ok) {
+        const msg =
+          typeof data.error === "string"
+            ? data.error
+            : typeof data.detail === "string"
+              ? data.detail
+              : "Sort failed";
+        throw new Error(msg);
+      }
+      setDriveResultDialog({
+        variant: "success",
+        title: data.message || "Sorting complete",
+        body: <SortDriveResultBody data={data} />,
+      });
     } catch (e) {
-      alert(e instanceof Error ? e.message : "Sort failed");
+      setDriveResultDialog({
+        variant: "error",
+        title: "Sorting failed",
+        body: (
+          <p className="text-muted-foreground">
+            {e instanceof Error ? e.message : "Sort failed"}
+          </p>
+        ),
+      });
     } finally {
       setSorting(false);
     }
@@ -1018,7 +1231,15 @@ export default function ChatPage() {
       }
       setResyncCooldownUntil(Date.now() + DRIVE_RESYNC_COOLDOWN_MS);
     } catch (e) {
-      alert(e instanceof Error ? e.message : "Resync failed");
+      setDriveResultDialog({
+        variant: "error",
+        title: "Resync failed",
+        body: (
+          <p className="text-muted-foreground">
+            {e instanceof Error ? e.message : "Resync failed"}
+          </p>
+        ),
+      });
     } finally {
       setLoadingSummaries(false);
       setResyncingDrive(false);
@@ -1366,7 +1587,7 @@ export default function ChatPage() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={disconnectDrive}
+                        onClick={() => setDriveActionConfirm("disconnect")}
                         className="h-7 text-xs"
                       >
                         Disconnect Drive
@@ -1423,7 +1644,7 @@ export default function ChatPage() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={sortDrive}
+                        onClick={() => setDriveActionConfirm("sort")}
                         disabled={sorting || driveConnected !== true}
                         className="h-7 text-xs"
                       >
@@ -1450,7 +1671,7 @@ export default function ChatPage() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={disconnectDrive}
+                        onClick={() => setDriveActionConfirm("disconnect")}
                       >
                         Disconnect Drive
                       </Button>
@@ -2261,6 +2482,109 @@ export default function ChatPage() {
                 textareaRef.current?.focus();
               }}
             />
+            <AlertDialog
+              open={driveActionConfirm !== null}
+              onOpenChange={(open) => {
+                if (!open) setDriveActionConfirm(null);
+              }}
+            >
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>
+                    {driveActionConfirm === "disconnect"
+                      ? "Disconnect Google Drive?"
+                      : "Sort files in Google Drive?"}
+                  </AlertDialogTitle>
+                  <AlertDialogDescription asChild>
+                    <div className="text-sm text-muted-foreground space-y-2 text-left">
+                      {driveActionConfirm === "disconnect" ? (
+                        <>
+                          <p className="font-semibold text-destructive">
+                            Warning
+                          </p>
+                          <p>
+                            Aorta will lose access to your Google account for
+                            this app. Event summaries, Drive images, and file
+                            context in chat will stop working until you connect
+                            again. Nothing is deleted in Google Drive.
+                          </p>
+                        </>
+                      ) : (
+                        <>
+                          <p className="font-semibold text-destructive">
+                            Warning
+                          </p>
+                          <p>
+                            This runs the organizer and may move files into
+                            folders based on naming rules. Changes apply
+                            directly in your Drive. Make sure you are comfortable
+                            with the rules before continuing — there is no
+                            automatic undo.
+                          </p>
+                        </>
+                      )}
+                    </div>
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel type="button">No, cancel</AlertDialogCancel>
+                  <Button
+                    type="button"
+                    variant={
+                      driveActionConfirm === "disconnect"
+                        ? "destructive"
+                        : "default"
+                    }
+                    onClick={() => {
+                      const action = driveActionConfirm;
+                      setDriveActionConfirm(null);
+                      if (action === "disconnect") void disconnectDrive();
+                      else if (action === "sort") void sortDrive();
+                    }}
+                  >
+                    {driveActionConfirm === "disconnect"
+                      ? "Yes, disconnect"
+                      : "Yes, sort files"}
+                  </Button>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+            <Dialog
+              open={driveResultDialog !== null}
+              onOpenChange={(open) => {
+                if (!open) setDriveResultDialog(null);
+              }}
+            >
+              <DialogContent className="sm:max-w-lg max-h-[min(90vh,32rem)] flex flex-col gap-0">
+                <DialogHeader>
+                  <DialogTitle
+                    className={cn(
+                      "flex items-start gap-2.5 pr-8 text-left",
+                      driveResultDialog?.variant === "error" &&
+                        "text-destructive",
+                    )}
+                  >
+                    {driveResultDialog?.variant === "success" ? (
+                      <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-500 shrink-0 mt-0.5" />
+                    ) : (
+                      <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" />
+                    )}
+                    <span>{driveResultDialog?.title}</span>
+                  </DialogTitle>
+                </DialogHeader>
+                <div className="overflow-y-auto min-h-0 py-2 text-sm">
+                  {driveResultDialog?.body}
+                </div>
+                <DialogFooter className="pt-2 sm:pt-4">
+                  <Button
+                    type="button"
+                    onClick={() => setDriveResultDialog(null)}
+                  >
+                    OK
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
             <Dialog open={driveImagesOpen} onOpenChange={setDriveImagesOpen}>
               <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
                 <DialogHeader>

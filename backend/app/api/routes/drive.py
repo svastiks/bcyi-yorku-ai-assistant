@@ -166,11 +166,18 @@ async def sort_files():
         result = file_sorter.sort_all_files()
         return {
             "message": "Sorting completed",
-            "stats": {k: result[k] for k in ("total", "sorted", "skipped", "failed")},
+            "stats": {
+                "total": result["total"],
+                "moved": len(result["sorted"]),
+                "skipped": len(result["skipped"]),
+                "already_placed": len(result["already_placed"]),
+                "failed": len(result["failed"]),
+            },
             "files_found": result["files_found"],
             "folders_created": result["folders_created"],
             "sorted": result["sorted"],
             "skipped": result["skipped"],
+            "already_placed": result["already_placed"],
             "failed": result["failed"],
             "timestamp": datetime.utcnow().isoformat(),
         }

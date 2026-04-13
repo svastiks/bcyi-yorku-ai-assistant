@@ -186,6 +186,7 @@ class FileSorter:
         folders_created = list(folder_map.keys())
         sorted_list: List[Dict] = []
         skipped_list: List[Dict] = []
+        already_placed_list: List[Dict] = []
         failed_list: List[Dict] = []
 
         for file in files:
@@ -194,7 +195,15 @@ class FileSorter:
                 continue
             target_folder = self.analyze_file(file)
             if target_folder and target_folder in folder_map:
-                success = self.drive_service.move_file(file.id, folder_map[target_folder])
+                dest_folder_id = folder_map[target_folder]
+                parents = file.parent_ids or []
+                if dest_folder_id in parents:
+                    already_placed_list.append({
+                        "name": file.name,
+                        "target_folder": target_folder,
+                    })
+                    continue
+                success = self.drive_service.move_file(file.id, dest_folder_id)
                 if success:
                     sorted_list.append({"name": file.name, "target_folder": target_folder})
                 else:
@@ -202,18 +211,13 @@ class FileSorter:
             else:
                 failed_list.append({"name": file.name, "reason": target_folder or "no rule"})
 
-        stats = {
-            "total": len(files),
-            "sorted": len(sorted_list),
-            "skipped": len(skipped_list),
-            "failed": len(failed_list),
-        }
         return {
-            **stats,
+            "total": len(files),
             "files_found": files_found,
             "folders_created": folders_created,
             "sorted": sorted_list,
             "skipped": skipped_list,
+            "already_placed": already_placed_list,
             "failed": failed_list,
         }
     

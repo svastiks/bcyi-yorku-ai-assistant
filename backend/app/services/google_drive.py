@@ -62,7 +62,8 @@ class GoogleDriveService:
                     mime_type=item['mimeType'],
                     created_time=datetime.fromisoformat(item['createdTime'].replace('Z', '+00:00')) if 'createdTime' in item else None,
                     modified_time=datetime.fromisoformat(item['modifiedTime'].replace('Z', '+00:00')) if 'modifiedTime' in item else None,
-                    size=int(item['size']) if 'size' in item else None
+                    size=int(item['size']) if 'size' in item else None,
+                    parent_ids=list(item.get('parents') or []),
                 )
                 drive_files.append(drive_file)
             
@@ -302,6 +303,7 @@ class GoogleDriveService:
                         if item.get("modifiedTime") else None
                     ),
                     size=size_val,
+                    parent_ids=list(item.get("parents") or []),
                 )
                 drive_files.append(drive_file)
             return drive_files
