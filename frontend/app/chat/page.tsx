@@ -157,6 +157,8 @@ const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024; // 5MB per image
 
 const DRIVE_IMAGES_LIST_CACHE_KEY = "aorta_drive_images_list";
 const DRIVE_IMAGES_LIST_CACHE_TTL_MS = 2 * 60 * 1000; // 2 minutes
+/** After a successful Drive resync, block another until this elapses (Google API rate limits) */
+const DRIVE_RESYNC_COOLDOWN_MS = 15_000;
 
 const contentTypes = [
   { value: "newsletter", label: "Newsletter" },
@@ -255,6 +257,11 @@ export default function ChatPage() {
   const [promptModalOpen, setPromptModalOpen] = useState(false);
   const [loadingSummaries, setLoadingSummaries] = useState(false);
   const [resyncingDrive, setResyncingDrive] = useState(false);
+  /** Wall-clock ms when resync is allowed again (set after successful sync only) */
+  const [resyncCooldownUntil, setResyncCooldownUntil] = useState<number | null>(
+    null,
+  );
+  const [, setResyncCooldownTick] = useState(0);
   const [mounted, setMounted] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [youtubeData, setYoutubeData] = useState<{
@@ -586,6 +593,23 @@ export default function ChatPage() {
   useEffect(() => {
     driveImagesOpenRef.current = driveImagesOpen;
   }, [driveImagesOpen]);
+
+  useEffect(() => {
+    if (!resyncCooldownUntil || Date.now() >= resyncCooldownUntil) return;
+    const id = window.setInterval(() => {
+      setResyncCooldownTick((n) => n + 1);
+      if (Date.now() >= resyncCooldownUntil) {
+        window.clearInterval(id);
+      }
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, [resyncCooldownUntil]);
+
+  const resyncOnCooldown =
+    resyncCooldownUntil !== null && Date.now() < resyncCooldownUntil;
+  const resyncCooldownSecondsLeft = resyncCooldownUntil
+    ? Math.max(0, Math.ceil((resyncCooldownUntil - Date.now()) / 1000))
+    : 0;
 
   const onDrivePreviewError = (id: string) => {
     setDrivePreviewFailed((prev) => new Set(prev).add(id));
@@ -952,7 +976,13 @@ export default function ChatPage() {
 
   /** Re-hit Drive on the server, then refresh summary pills and image list cache */
   const resyncDriveFromCloud = async () => {
-    if (driveConnected !== true || resyncingDrive) return;
+    if (
+      driveConnected !== true ||
+      resyncingDrive ||
+      (resyncCooldownUntil !== null && Date.now() < resyncCooldownUntil)
+    ) {
+      return;
+    }
     setResyncingDrive(true);
     setLoadingSummaries(true);
     try {
@@ -986,6 +1016,7 @@ export default function ChatPage() {
       if (driveImagesOpenRef.current) {
         setDriveImages(images);
       }
+      setResyncCooldownUntil(Date.now() + DRIVE_RESYNC_COOLDOWN_MS);
     } catch (e) {
       alert(e instanceof Error ? e.message : "Resync failed");
     } finally {
@@ -1959,26 +1990,45 @@ export default function ChatPage() {
                       </p>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="h-7 gap-1.5 px-2.5 text-xs shrink-0"
-                            disabled={resyncingDrive}
-                            onClick={() => void resyncDriveFromCloud()}
+                          <span
+                            className={cn(
+                              "inline-flex",
+                              (resyncingDrive || resyncOnCooldown) &&
+                                "cursor-not-allowed",
+                            )}
+                            tabIndex={
+                              resyncingDrive || resyncOnCooldown ? 0 : undefined
+                            }
                           >
-                            <RefreshCw
-                              className={cn(
-                                "h-3.5 w-3.5",
-                                resyncingDrive && "animate-spin",
-                              )}
-                            />
-                            {resyncingDrive ? "Syncing…" : "Resync"}
-                          </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="h-7 gap-1.5 px-2.5 text-xs shrink-0"
+                              disabled={resyncingDrive || resyncOnCooldown}
+                              onClick={() => void resyncDriveFromCloud()}
+                            >
+                              <RefreshCw
+                                className={cn(
+                                  "h-3.5 w-3.5",
+                                  resyncingDrive && "animate-spin",
+                                )}
+                              />
+                              {resyncingDrive
+                                ? "Syncing…"
+                                : resyncOnCooldown
+                                  ? `Wait ${resyncCooldownSecondsLeft}s`
+                                  : "Resync"}
+                            </Button>
+                          </span>
                         </TooltipTrigger>
                         <TooltipContent side="top" className="max-w-xs">
                           <p className="text-center text-xs">
-                            Refresh summaries and Drive images from Google Drive
+                            {resyncingDrive
+                              ? "Syncing with Google Drive…"
+                              : resyncOnCooldown
+                                ? `You can resync once every 15 seconds. Try again in ${resyncCooldownSecondsLeft}s to avoid hitting Google rate limits.`
+                                : "Refresh summaries and Drive images from Google Drive. After each successful resync, wait 15 seconds before the next one."}
                           </p>
                         </TooltipContent>
                       </Tooltip>
