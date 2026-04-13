@@ -2,23 +2,14 @@
 
 import Link from "next/link"
 import Image from "next/image"
-import { useEffect, useRef } from "react"
-
-function useReveal(delay = 0) {
-  const ref = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    const el = ref.current
-    if (!el) return
-    el.style.transitionDelay = `${delay}ms`
-    const obs = new IntersectionObserver(
-      ([e]) => { if (e.isIntersecting) { el.classList.add("in"); obs.unobserve(el) } },
-      { threshold: 0.1 }
-    )
-    obs.observe(el)
-    return () => obs.disconnect()
-  }, [delay])
-  return ref
-}
+import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
+import {
+  readHasVisitedChat,
+  LANDING_BYPASS_REDIRECT_PARAM,
+  setSessionMarketingBypass,
+  readSessionMarketingBypass,
+} from "@/lib/landing-prefs"
 
 const GDrive = () => (
   <svg width="24" height="20" viewBox="0 0 87.3 78" xmlns="http://www.w3.org/2000/svg">
@@ -32,16 +23,41 @@ const GDrive = () => (
 )
 
 export default function LandingPage() {
-  const r1 = useReveal(0);   const r2 = useReveal(120); const r3 = useReveal(240)
-  const r4 = useReveal(0);   const r5 = useReveal(0);   const r6 = useReveal(100)
-  const r7 = useReveal(200); const r8 = useReveal(0);   const r9 = useReveal(110)
-  const r10 = useReveal(220)
+  const router = useRouter()
+  const [showLanding, setShowLanding] = useState(false)
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get(LANDING_BYPASS_REDIRECT_PARAM) === "1") {
+      setSessionMarketingBypass()
+      setShowLanding(true)
+      const path = window.location.pathname + (window.location.hash || "")
+      window.history.replaceState({}, "", path || "/")
+      return
+    }
+    if (readSessionMarketingBypass()) {
+      setShowLanding(true)
+      return
+    }
+    if (readHasVisitedChat()) {
+      router.replace("/chat")
+      return
+    }
+    setShowLanding(true)
+  }, [router])
+
+  if (!showLanding) {
+    return (
+      <div className="min-h-screen bg-[#fef8f5] flex items-center justify-center font-sans">
+        <p className="text-sm text-[#7a3a30]/80">Loading…</p>
+      </div>
+    )
+  }
 
   return (
     <>
       <style>{`
-        .in-hidden { opacity:0; transform:translateY(32px); transition:opacity .65s ease, transform .65s ease; }
-        .in-hidden.in { opacity:1; transform:translateY(0); }
+        html { scroll-padding-top: 5.5rem; }
         @keyframes blob { 0%,100%{transform:translate(-50%,-45%) scale(1) rotate(0deg);} 50%{transform:translate(-50%,-45%) scale(1.07) rotate(4deg);} }
         .blob { animation: blob 6s ease-in-out infinite; }
         @keyframes blob2 { 0%,100%{transform:scale(1);} 50%{transform:scale(1.12);} }
@@ -135,7 +151,7 @@ export default function LandingPage() {
         </section>
 
         {/* ─── SOCIAL PROOF STRIP ─── */}
-        <div ref={r1} className="in-hidden bg-[#faede8] border-y border-[#f5cfc8] py-5 px-8">
+        <div className="bg-[#faede8] border-y border-[#f5cfc8] py-5 px-8">
           <div className="max-w-5xl mx-auto flex flex-wrap justify-center gap-8 text-sm text-gray-500">
             {[
               { val:"5", label:"Content Types" },
@@ -153,7 +169,7 @@ export default function LandingPage() {
 
         {/* ─── SCREENSHOT ─── */}
         <section className="px-8 py-24 bg-[#fef8f5]">
-          <div ref={r2} className="in-hidden max-w-5xl mx-auto">
+          <div className="max-w-5xl mx-auto">
             <div className="float rounded-3xl overflow-hidden shadow-2xl ring-4 ring-[#f97060]/15">
               <div className="bg-gradient-to-r from-[#f97060] to-[#f9c84a] px-5 py-3.5 flex items-center gap-2">
                 <div className="w-3 h-3 rounded-full bg-white/40"/>
@@ -161,14 +177,21 @@ export default function LandingPage() {
                 <div className="w-3 h-3 rounded-full bg-white/40"/>
                 <span className="ml-3 text-white/70 text-xs font-medium">Aorta — AI Content Assistant</span>
               </div>
-              <Image src="/chat-screenshot.png" alt="Aorta interface" width={1200} height={700} className="w-full h-auto"/>
+              <Image
+                src="/chat-screenshot.png"
+                alt="Aorta interface"
+                width={1200}
+                height={700}
+                className="w-full h-auto"
+                priority
+              />
             </div>
           </div>
         </section>
 
         {/* ─── HOW IT WORKS ─── */}
-        <section id="how" className="px-8 py-24 bg-[#0f0f14]">
-          <div ref={r3} className="in-hidden text-center mb-16">
+        <section id="how" className="scroll-mt-24 px-8 py-24 bg-[#0f0f14]">
+          <div className="text-center mb-16">
             <div className="inline-flex items-center gap-2 border border-[#f97060]/30 bg-[#f97060]/10 px-4 py-1.5 rounded-full text-sm text-[#f9a09a] mb-4">
               Simple to use
             </div>
@@ -180,10 +203,9 @@ export default function LandingPage() {
               { num:"01", title:"Choose a content type", desc:"Pick from Newsletter, Blog Post, Donor Email, Social Media, or General. Aorta adapts to your format instantly.", color:"from-[#f97060] to-[#f9c84a]" },
               { num:"02", title:"Connect Google Drive", desc:"Link your Drive and Aorta automatically pulls relevant context from your org's files to ground every piece of content.", color:"from-[#c962a0] to-[#f97060]" },
               { num:"03", title:"Chat and create", desc:"Describe what you need, refine through conversation, and get polished content ready to publish — in moments.", color:"from-[#4f8df9] to-[#c962a0]" },
-            ].map((s, i) => {
-              const refs = [r4, r5, r6]
+            ].map((s) => {
               return (
-                <div key={s.num} ref={refs[i]} className="in-hidden card-hover rounded-2xl p-7 bg-white/[0.07] border border-white/10">
+                <div key={s.num} className="card-hover rounded-2xl p-7 bg-white/[0.07] border border-white/10">
                   <div className={`inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-gradient-to-br ${s.color} text-white font-bold text-sm mb-5 shadow-lg`}>
                     {s.num}
                   </div>
@@ -196,8 +218,8 @@ export default function LandingPage() {
         </section>
 
         {/* ─── FEATURES ─── */}
-        <section id="features" className="px-8 pt-24 pb-28 bg-[#0f0f14]">
-          <div ref={r7} className="in-hidden text-center mb-16">
+        <section id="features" className="scroll-mt-24 px-8 pt-24 pb-28 bg-[#0f0f14]">
+          <div className="text-center mb-16">
             <div className="inline-flex items-center gap-2 border border-[#f97060]/30 bg-[#f97060]/10 px-4 py-1.5 rounded-full text-sm text-[#f9a09a] mb-4">
               Our Capabilities
             </div>
@@ -207,7 +229,7 @@ export default function LandingPage() {
           <div className="max-w-5xl mx-auto grid grid-cols-2 gap-4">
 
             {/* Chat With Aorta */}
-            <div ref={r8} className="in-hidden card-hover rounded-3xl overflow-hidden shadow-2xl flex flex-col" style={{background:"#f9c84a", height:"400px"}}>
+            <div className="card-hover rounded-3xl overflow-hidden shadow-2xl flex flex-col" style={{background:"#f9c84a", height:"400px"}}>
               {/* Fixed-height image area — always fills exactly, no gap */}
               <div className="relative flex-shrink-0" style={{height:"220px"}}>
                 <Image src="/chat-conversation.png" alt="Chat with Aorta" fill className="object-cover object-top"/>
@@ -222,7 +244,7 @@ export default function LandingPage() {
             </div>
 
             {/* Content Types */}
-            <div ref={r9} className="in-hidden card-hover rounded-3xl overflow-hidden shadow-2xl flex flex-col" style={{background:"#f9c84a", height:"400px"}}>
+            <div className="card-hover rounded-3xl overflow-hidden shadow-2xl flex flex-col" style={{background:"#f9c84a", height:"400px"}}>
               <div className="px-7 pt-7 pb-3 flex-shrink-0">
                 <h3 className="text-xl font-bold text-gray-900 mb-2">Content Types</h3>
                 <p className="text-gray-800 text-sm leading-relaxed">
@@ -242,7 +264,7 @@ export default function LandingPage() {
             </div>
 
             {/* Integrate Your Data */}
-            <div ref={r10} className="in-hidden card-hover rounded-3xl overflow-hidden shadow-2xl flex flex-col" style={{background:"#f9c84a", height:"400px"}}>
+            <div className="card-hover rounded-3xl overflow-hidden shadow-2xl flex flex-col" style={{background:"#f9c84a", height:"400px"}}>
               <div className="px-7 pt-7 pb-3 flex-shrink-0">
                 <h3 className="text-xl font-bold text-gray-900 mb-2">Integrate Your Data</h3>
                 <p className="text-gray-800 text-sm leading-relaxed">Aorta integrates directly with Google Drive — pulling context from your files and organizing your documents automatically.</p>
@@ -253,7 +275,7 @@ export default function LandingPage() {
             </div>
 
             {/* Track Your Impact */}
-            <div className="in-hidden card-hover rounded-3xl overflow-hidden shadow-2xl flex flex-col" style={{background:"#f9c84a", height:"400px"}}>
+            <div className="card-hover rounded-3xl overflow-hidden shadow-2xl flex flex-col" style={{background:"#f9c84a", height:"400px"}}>
               <div className="px-7 pt-7 pb-3 flex-shrink-0">
                 <h3 className="text-xl font-bold text-gray-900 mb-2">Track Your Impact</h3>
                 <p className="text-gray-800 text-sm leading-relaxed">See how your content performs across platforms with built-in social media stats — so you always know what&apos;s resonating.</p>

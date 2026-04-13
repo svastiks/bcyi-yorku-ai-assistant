@@ -211,6 +211,19 @@ export class BackendAPIClient {
   }
 
   /**
+   * Trigger a Drive sync (lists files on the server; use before refreshing summaries/images).
+   */
+  async syncDrive(): Promise<{ message: string; files_found: number; timestamp: string }> {
+    const response = await fetch(`${this.baseUrl}/api/drive/sync`, { method: 'POST' });
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
+      const msg = body.detail ?? body.error ?? response.statusText;
+      throw new Error(typeof msg === 'string' ? msg : 'Sync failed');
+    }
+    return response.json();
+  }
+
+  /**
    * Health check
    */
   async healthCheck(): Promise<{ status: string }> {

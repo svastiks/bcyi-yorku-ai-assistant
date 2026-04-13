@@ -1,4 +1,4 @@
-# Backend Dockerfile for BCYI AI Assistant
+# Backend Dockerfile for Aorta AI Assistant
 
 FROM python:3.11-slim
 

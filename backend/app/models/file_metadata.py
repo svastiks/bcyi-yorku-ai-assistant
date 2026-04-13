@@ -1,6 +1,6 @@
 """Google Drive file metadata models"""
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import List, Optional
 from datetime import datetime
 
 
@@ -13,6 +13,10 @@ class DriveFile(BaseModel):
     modified_time: Optional[datetime] = None
     size: Optional[int] = None
     folder_path: Optional[str] = None
+    parent_ids: List[str] = Field(
+        default_factory=list,
+        description="Immediate parent folder IDs (from Drive API parents field)",
+    )
     
     class Config:
         json_schema_extra = {
