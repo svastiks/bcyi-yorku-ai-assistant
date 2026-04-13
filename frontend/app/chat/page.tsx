@@ -24,6 +24,7 @@ import {
   HelpCircle,
   ChevronLeft,
   ArrowLeft,
+  RefreshCw,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { cn } from "@/lib/utils";
@@ -253,6 +254,7 @@ export default function ChatPage() {
   const [summaries, setSummaries] = useState<SummaryItem[]>([]);
   const [promptModalOpen, setPromptModalOpen] = useState(false);
   const [loadingSummaries, setLoadingSummaries] = useState(false);
+  const [resyncingDrive, setResyncingDrive] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [youtubeData, setYoutubeData] = useState<{
@@ -290,6 +292,7 @@ export default function ChatPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesScrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const driveImagesOpenRef = useRef(false);
   const retryOnLoadRef = useRef(false);
   /** Content type to restore when leaving Social Media Stats */
   const contentTypeBeforeSocialRef = useRef<ContentType>("general");
@@ -579,6 +582,10 @@ export default function ChatPage() {
         setDriveImagesLoading(false);
       });
   }, [driveImagesOpen, driveConnected]);
+
+  useEffect(() => {
+    driveImagesOpenRef.current = driveImagesOpen;
+  }, [driveImagesOpen]);
 
   const onDrivePreviewError = (id: string) => {
     setDrivePreviewFailed((prev) => new Set(prev).add(id));
@@ -940,6 +947,50 @@ export default function ChatPage() {
       alert(e instanceof Error ? e.message : "Sort failed");
     } finally {
       setSorting(false);
+    }
+  };
+
+  /** Re-hit Drive on the server, then refresh summary pills and image list cache */
+  const resyncDriveFromCloud = async () => {
+    if (driveConnected !== true || resyncingDrive) return;
+    setResyncingDrive(true);
+    setLoadingSummaries(true);
+    try {
+      const syncRes = await fetch("/api/drive/sync", { method: "POST" });
+      const syncJson = await syncRes.json().catch(() => ({}));
+      if (!syncRes.ok) {
+        const msg =
+          typeof syncJson.error === "string"
+            ? syncJson.error
+            : typeof syncJson.detail === "string"
+              ? syncJson.detail
+              : "Drive sync failed";
+        throw new Error(msg);
+      }
+      const [sumRes, imgRes] = await Promise.all([
+        fetch("/api/drive/summaries"),
+        fetch("/api/drive/images?limit=100"),
+      ]);
+      const sumData = sumRes.ok ? await sumRes.json() : { summaries: [] };
+      const imgData = imgRes.ok ? await imgRes.json() : { images: [] };
+      setSummaries(sumData.summaries || []);
+      const images = imgData.images || [];
+      try {
+        sessionStorage.setItem(
+          DRIVE_IMAGES_LIST_CACHE_KEY,
+          JSON.stringify({ images, fetchedAt: Date.now() }),
+        );
+      } catch {
+        /* noop */
+      }
+      if (driveImagesOpenRef.current) {
+        setDriveImages(images);
+      }
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Resync failed");
+    } finally {
+      setLoadingSummaries(false);
+      setResyncingDrive(false);
     }
   };
 
@@ -1902,9 +1953,36 @@ export default function ChatPage() {
               <div className="max-w-4xl mx-auto space-y-2 sm:space-y-3">
                 {driveConnected === true && (
                   <div className="space-y-2">
-                    <p className="text-xs font-medium text-muted-foreground">
-                      Latest events (select to build prompt)
-                    </p>
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-xs font-medium text-muted-foreground">
+                        Latest events (select to build prompt)
+                      </p>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-7 gap-1.5 px-2.5 text-xs shrink-0"
+                            disabled={resyncingDrive}
+                            onClick={() => void resyncDriveFromCloud()}
+                          >
+                            <RefreshCw
+                              className={cn(
+                                "h-3.5 w-3.5",
+                                resyncingDrive && "animate-spin",
+                              )}
+                            />
+                            {resyncingDrive ? "Syncing…" : "Resync"}
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="max-w-xs">
+                          <p className="text-center text-xs">
+                            Refresh summaries and Drive images from Google Drive
+                          </p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
                     <div className="flex flex-wrap gap-2">
                       {loadingSummaries ? (
                         <span className="text-sm text-muted-foreground">
