@@ -2,7 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useLayoutEffect } from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -25,6 +25,7 @@ import {
   ChevronLeft,
   ArrowLeft,
   RefreshCw,
+  Loader2,
   CheckCircle2,
   AlertCircle,
 } from "lucide-react";
@@ -169,6 +170,27 @@ const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024; // 5MB per image
 
 const DRIVE_IMAGES_LIST_CACHE_KEY = "aorta_drive_images_list";
 const DRIVE_IMAGES_LIST_CACHE_TTL_MS = 2 * 60 * 1000; // 2 minutes
+/** Last known Drive OAuth status for this tab — read before paint to avoid a false "Connect" flash */
+const DRIVE_CONNECTED_CACHE_KEY = "aorta_drive_connected";
+
+function readDriveConnectedCache(): boolean | null {
+  try {
+    const v = sessionStorage.getItem(DRIVE_CONNECTED_CACHE_KEY);
+    if (v === "1") return true;
+    if (v === "0") return false;
+  } catch {
+    /* noop */
+  }
+  return null;
+}
+
+function persistDriveConnectedCache(connected: boolean) {
+  try {
+    sessionStorage.setItem(DRIVE_CONNECTED_CACHE_KEY, connected ? "1" : "0");
+  } catch {
+    /* noop */
+  }
+}
 /** After a successful Drive resync, block another until this elapses (Google API rate limits) */
 const DRIVE_RESYNC_COOLDOWN_MS = 15_000;
 
@@ -427,6 +449,10 @@ export default function ChatPage() {
   const [sorting, setSorting] = useState(false);
   // const [listing, setListing] = useState(false); // used by List files (commented out)
   const [driveConnected, setDriveConnected] = useState<boolean | null>(null);
+  useLayoutEffect(() => {
+    const cached = readDriveConnectedCache();
+    if (cached !== null) setDriveConnected(cached);
+  }, []);
   const [selectedType, setSelectedType] = useState<ContentType>("general");
   const [hydrated, setHydrated] = useState(false);
   const [summaries, setSummaries] = useState<SummaryItem[]>([]);
@@ -691,6 +717,8 @@ export default function ChatPage() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("drive_connected") === "1") {
+      persistDriveConnectedCache(true);
+      setDriveConnected(true);
       setDriveResultDialog({
         variant: "success",
         title: "Google Drive connected",
@@ -706,6 +734,8 @@ export default function ChatPage() {
     }
     const err = params.get("drive_error");
     if (err) {
+      persistDriveConnectedCache(false);
+      setDriveConnected(false);
       setDriveResultDialog({
         variant: "error",
         title: "Couldn’t connect Google Drive",
@@ -718,17 +748,23 @@ export default function ChatPage() {
 
     fetch("/api/drive/auth/status")
       .then((r) => r.json())
-      .then((d: { connected?: unknown }) =>
-        setDriveConnected(d?.connected === true),
-      )
-      .catch(() => setDriveConnected(false));
+      .then((d: { connected?: unknown }) => {
+        const ok = d?.connected === true;
+        setDriveConnected(ok);
+        persistDriveConnectedCache(ok);
+      })
+      .catch(() => {
+        setDriveConnected(false);
+        persistDriveConnectedCache(false);
+      });
   }, []);
 
   useEffect(() => {
-    if (!driveConnected) {
+    if (driveConnected === false) {
       setSummaries([]);
       return;
     }
+    if (driveConnected !== true) return;
     setLoadingSummaries(true);
     fetch("/api/drive/summaries")
       .then((r) => (r.ok ? r.json() : { summaries: [] }))
@@ -1079,6 +1115,7 @@ export default function ChatPage() {
       if (!res.ok)
         throw new Error((await res.json()).error || "Disconnect failed");
       setDriveConnected(false);
+      persistDriveConnectedCache(false);
       setDriveResultDialog({
         variant: "success",
         title: "Disconnected from Google Drive",
@@ -1599,7 +1636,7 @@ export default function ChatPage() {
                       </p>
                     </TooltipContent>
                   </Tooltip>
-                ) : (
+                ) : driveConnected === false ? (
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
@@ -1615,6 +1652,28 @@ export default function ChatPage() {
                       <p className="max-w-xs text-center">
                         Sign in with Google so Aorta can read Drive files,
                         summaries, and images you attach
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                ) : (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="inline-flex">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          disabled
+                          className="h-7 text-xs pointer-events-none gap-1.5"
+                          aria-busy
+                        >
+                          <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />
+                          Drive…
+                        </Button>
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="max-w-xs text-center">
+                        Checking whether Google Drive is connected
                       </p>
                     </TooltipContent>
                   </Tooltip>
@@ -1657,7 +1716,9 @@ export default function ChatPage() {
                     <p className="max-w-xs text-center">
                       {driveConnected === true
                         ? "Run the Organizer on your Drive - moves files into folders using naming rules"
-                        : "Connect Google Drive to Access sorting."}
+                        : driveConnected === false
+                          ? "Connect Google Drive to Access sorting."
+                          : "Checking Drive connection…"}
                     </p>
                   </TooltipContent>
                 </Tooltip>
@@ -1683,7 +1744,7 @@ export default function ChatPage() {
                       </p>
                     </TooltipContent>
                   </Tooltip>
-                ) : (
+                ) : driveConnected === false ? (
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
@@ -1701,6 +1762,17 @@ export default function ChatPage() {
                       </p>
                     </TooltipContent>
                   </Tooltip>
+                ) : (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled
+                    className="gap-1.5 pointer-events-none"
+                    aria-busy
+                  >
+                    <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />
+                    Drive…
+                  </Button>
                 )}
               </div>
 
