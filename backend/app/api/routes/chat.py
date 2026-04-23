@@ -1,5 +1,5 @@
 """Chat API endpoints"""
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request
 from fastapi.responses import StreamingResponse
 from app.models.chat import ChatSession, CreateChatRequest, SendMessageRequest, ChatMessage
 from app.models.content import GeneratedContent
@@ -8,6 +8,8 @@ from app.services.prompt_builder import PromptBuilder
 from app.services.context_retriever import ContextRetriever
 from app.services.google_drive import GoogleDriveService
 from app.utils.auth import GoogleAuthHandler
+from app.config import settings
+from app.rate_limit import limiter
 from datetime import datetime
 from typing import Optional, Dict, List, Tuple
 import base64
@@ -132,12 +134,13 @@ def _resolve_image_parts(
 
 
 @router.post("/create", response_model=dict)
-async def create_chat(request: CreateChatRequest):
+@limiter.limit(settings.rate_limit_chat_create)
+async def create_chat(request: Request, payload: CreateChatRequest):
     """Create a new chat session"""
     try:
         chat_id = str(uuid4())
         chat_session = ChatSession(
-            content_type=request.content_type,
+            content_type=payload.content_type,
             created_at=datetime.utcnow(),
             messages=[]
         )
@@ -183,10 +186,12 @@ async def get_chat(chat_id: str):
 
 
 @router.post("/{chat_id}/message", response_model=dict)
+@limiter.limit(settings.rate_limit_chat_message)
 async def send_message(
+    request: Request,
     chat_id: str,
-    request: SendMessageRequest,
-    gemini_client: GeminiClient = Depends(get_gemini_client)
+    payload: SendMessageRequest,
+    gemini_client: GeminiClient = Depends(get_gemini_client),
 ):
     """Send a message in a chat and get AI response"""
     try:
@@ -199,7 +204,7 @@ async def send_message(
         # Add user message
         user_message = ChatMessage(
             role="user",
-            content=request.message,
+            content=payload.message,
             timestamp=datetime.utcnow()
         )
         
@@ -223,50 +228,56 @@ async def send_message(
             if not drive_service:
                 print("Chat context: Drive not connected (no OAuth credentials)")
             else:
-                # Only search Drive for context when requested (skip when e.g. user only describing an attached image)
-                include_drive_context = getattr(request, "include_drive_context", True)
-                if include_drive_context:
-                    # Priority context: user-selected event summary file (e.g. from prompt builder)
-                    has_selected_file = bool(getattr(request, "context_file_id", None))
-                    if has_selected_file:
-                        try:
-                            content = drive_service.get_file_content(request.context_file_id)
-                        except Exception as e:
-                            print(f"Chat context: get_file_content failed: {e}")
-                            content = None
-                        if content:
-                            if len(content) > 8000:
-                                content = content[:8000] + "\n...(truncated)"
-                            context_files.append({
-                                "name": "Selected event summary",
-                                "folder": "Drive",
-                                "content": content,
-                                "relevance_score": 100.0,
-                                "modified_time": None,
-                            })
-                    if not has_selected_file:
-                        try:
-                            context_retriever = ContextRetriever(drive_service)
-                            content_type = chat.get('content_type', 'general')
-                            retrieved = context_retriever.get_relevant_files(
-                                content_type=content_type,
-                                user_query=request.message,
-                                max_files=10
-                            )
-                            seen_names = {c.get("name") for c in context_files}
-                            for c in retrieved:
-                                if c.get("name") not in seen_names:
-                                    context_files.append(c)
-                                    seen_names.add(c.get("name"))
-                        except Exception as e:
-                            print(f"Chat context: get_relevant_files failed: {e}")
-                        if not context_files and ("use " in request.message.lower() or "from drive" in request.message.lower() or "print " in request.message.lower()):
-                            print(f"Chat context: no files found for query (name search + keyword over root/subfolders)")
+                include_drive_context = getattr(
+                    payload, "include_drive_context", True
+                )
+                has_selected_file = bool(getattr(payload, "context_file_id", None))
+                # Explicit summary pill: always load when user picked a file (not gated by Search Drive toggle).
+                if has_selected_file:
+                    try:
+                        content = drive_service.get_file_content(payload.context_file_id)
+                    except Exception as e:
+                        print(f"Chat context: get_file_content failed: {e}")
+                        content = None
+                    if content:
+                        if len(content) > 8000:
+                            content = content[:8000] + "\n...(truncated)"
+                        context_files.append({
+                            "name": "Selected event summary",
+                            "folder": "Drive",
+                            "content": content,
+                            "relevance_score": 100.0,
+                            "modified_time": None,
+                        })
+                # Automatic Drive search (heavy): gated by client toggle and server flag.
+                drive_auto_search = (
+                    settings.drive_context_search_enabled
+                    and include_drive_context
+                    and not has_selected_file
+                )
+                if drive_auto_search:
+                    try:
+                        context_retriever = ContextRetriever(drive_service)
+                        content_type = chat.get('content_type', 'general')
+                        retrieved = context_retriever.get_relevant_files(
+                            content_type=content_type,
+                            user_query=payload.message,
+                            max_files=10
+                        )
+                        seen_names = {c.get("name") for c in context_files}
+                        for c in retrieved:
+                            if c.get("name") not in seen_names:
+                                context_files.append(c)
+                                seen_names.add(c.get("name"))
+                    except Exception as e:
+                        print(f"Chat context: get_relevant_files failed: {e}")
+                    if not context_files and ("use " in payload.message.lower() or "from drive" in payload.message.lower() or "print " in payload.message.lower()):
+                        print(f"Chat context: no files found for query (name search + keyword over root/subfolders)")
         except Exception as e:
             print(f"Context from Drive: {e}")
 
         # Resolve image parts (inline + drive ids + "latest image" intent)
-        image_parts = _resolve_image_parts(request, drive_service)
+        image_parts = _resolve_image_parts(payload, drive_service)
         
         # Build prompt
         content_type = chat.get('content_type', 'general')
@@ -274,7 +285,7 @@ async def send_message(
         
         prompt = PromptBuilder.build_prompt(
             content_type=content_type,
-            user_input=request.message,
+            user_input=payload.message,
             context_files=context_files,
             chat_history=chat_history
         )

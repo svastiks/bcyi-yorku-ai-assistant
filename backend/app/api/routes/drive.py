@@ -1,5 +1,5 @@
 """Google Drive management API endpoints"""
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import RedirectResponse, Response
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
@@ -7,6 +7,7 @@ from app.services.google_drive import GoogleDriveService
 from app.services.file_sorter import FileSorter
 from app.utils.auth import GoogleAuthHandler
 from app.config import settings
+from app.rate_limit import limiter
 from typing import Optional, Dict, Tuple
 from datetime import datetime
 import json
@@ -142,7 +143,8 @@ async def auth_disconnect():
 
 
 @router.post("/sync")
-async def sync_drive():
+@limiter.limit(settings.rate_limit_drive_sync)
+async def sync_drive(request: Request):
     """Trigger file sync from Google Drive (OAuth)."""
     try:
         credentials = get_drive_credentials()
@@ -156,7 +158,8 @@ async def sync_drive():
 
 
 @router.post("/sort")
-async def sort_files():
+@limiter.limit(settings.rate_limit_drive_sort)
+async def sort_files(request: Request):
     """Run file sorting algorithm - uses OAuth Drive."""
     try:
         credentials = get_drive_credentials()

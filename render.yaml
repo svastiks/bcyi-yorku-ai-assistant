@@ -1,5 +1,8 @@
 # Render: backend only (frontend on Vercel).
 # In Render dashboard set: GEMINI_API_KEY, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, FRONTEND_URL (your Vercel URL), CORS_ORIGINS (same as FRONTEND_URL).
+# Optional for a high traffic day: DRIVE_CONTEXT_SEARCH_ENABLED=false (skip automatic Drive search in chat).
+# Optional: RATE_LIMIT_CHAT_MESSAGE, RATE_LIMIT_CHAT_CREATE, RATE_LIMIT_DRIVE_SYNC, RATE_LIMIT_DRIVE_SORT (e.g. "15/minute"); redeploy/restart to apply.
+# Optional: RATE_LIMIT_RESET_SECRET — then POST https://<RENDER_URL>/api/admin/reset-rate-limits?token=<secret> clears shared IP buckets without restart.
 services:
   - type: web
     name: aorta-backend
