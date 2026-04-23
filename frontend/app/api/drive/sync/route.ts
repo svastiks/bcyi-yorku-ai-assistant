@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { BackendAPIClient } from '@/lib/api-client'
+import { RateLimitedError, RATE_LIMIT_USER_MESSAGE } from '@/lib/rate-limit'
 
 const backendAPI = new BackendAPIClient()
 
@@ -8,6 +9,12 @@ export async function POST() {
     const result = await backendAPI.syncDrive()
     return NextResponse.json(result)
   } catch (e) {
+    if (e instanceof RateLimitedError) {
+      return NextResponse.json(
+        { error: RATE_LIMIT_USER_MESSAGE, code: 'rate_limit' },
+        { status: 429 },
+      )
+    }
     const message = e instanceof Error ? e.message : 'Sync failed'
     console.error('[API] Drive sync error:', message)
     return NextResponse.json({ error: message }, { status: 500 })

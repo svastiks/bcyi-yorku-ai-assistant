@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { cn } from "@/lib/utils";
+import { RateLimitedError } from "@/lib/rate-limit";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { PromptVariablesModal } from "@/components/prompt-variables-modal";
 import {
@@ -191,6 +192,16 @@ function persistDriveConnectedCache(connected: boolean) {
     /* noop */
   }
 }
+
+/**
+ * Greys out Search Drive and omits automatic Drive context from chat requests.
+ * Set on Vercel (not Render): NEXT_PUBLIC_DRIVE_CONTEXT_SEARCH_DISABLED=true or 1
+ * before build. Render only runs the API; it never reads this.
+ */
+const DRIVE_CONTEXT_SEARCH_UI_DISABLED =
+  process.env.NEXT_PUBLIC_DRIVE_CONTEXT_SEARCH_DISABLED === "true" ||
+  process.env.NEXT_PUBLIC_DRIVE_CONTEXT_SEARCH_DISABLED === "1";
+
 /** After a successful Drive resync, block another until this elapses (Google API rate limits) */
 const DRIVE_RESYNC_COOLDOWN_MS = 15_000;
 
@@ -503,7 +514,9 @@ export default function ChatPage() {
   const [driveChipPreviewFailed, setDriveChipPreviewFailed] = useState<
     Set<string>
   >(new Set());
-  const [searchDriveContext, setSearchDriveContext] = useState(true);
+  const [searchDriveContext, setSearchDriveContext] = useState(
+    !DRIVE_CONTEXT_SEARCH_UI_DISABLED,
+  );
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messageRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -583,11 +596,27 @@ export default function ChatPage() {
         summaryFileId,
         imageDriveIds: imageDriveIds?.length ? imageDriveIds : undefined,
         imageInline: imageInline?.length ? imageInline : undefined,
-        includeDriveContext: includeDriveContext ?? searchDriveContext,
+        includeDriveContext: DRIVE_CONTEXT_SEARCH_UI_DISABLED
+          ? false
+          : (includeDriveContext ?? searchDriveContext),
       }),
     });
-    if (!res.ok) throw new Error("Failed to fetch response");
-    const data = await res.json();
+    const data = (await res.json().catch(() => ({}))) as {
+      message?: string;
+      chatId?: string;
+      error?: string;
+      code?: string;
+    };
+    if (res.status === 429) {
+      throw new RateLimitedError(
+        typeof data.error === "string" ? data.error : undefined,
+      );
+    }
+    if (!res.ok) {
+      throw new Error(
+        typeof data.error === "string" ? data.error : "Failed to fetch response",
+      );
+    }
     const newBackendId = data.chatId || null;
     if (newBackendId && currentSessionId) {
       setChatSessions((prev) =>
@@ -700,13 +729,16 @@ export default function ChatPage() {
       undefined,
       searchDriveContext,
     )
-      .catch(() => {
+      .catch((err) => {
+        const rateLimited = err instanceof RateLimitedError;
         setMessages((prev) => [
           ...prev,
           {
             id: (Date.now() + 1).toString(),
             role: "assistant",
-            content: "Response was interrupted. Please try sending again.",
+            content: rateLimited
+              ? err.message
+              : "Response was interrupted. Please try sending again.",
             timestamp: new Date(),
           },
         ]);
@@ -1087,13 +1119,15 @@ export default function ChatPage() {
       );
     } catch (error) {
       console.error("[aorta-ai-assistant] Chat error:", error);
+      const rateLimited = error instanceof RateLimitedError;
       setMessages((prev) => [
         ...prev,
         {
           id: (Date.now() + 1).toString(),
           role: "assistant",
-          content:
-            "Hello! I'm your AI content assistant. Currently in demo mode — please connect your backend API.",
+          content: rateLimited
+            ? error.message
+            : "Hello! I'm your AI content assistant. Currently in demo mode — please connect your backend API.",
           timestamp: new Date(),
         },
       ]);
@@ -1196,6 +1230,11 @@ export default function ChatPage() {
         detail?: string;
       };
       if (!res.ok) {
+        if (res.status === 429) {
+          throw new RateLimitedError(
+            typeof data.error === "string" ? data.error : undefined,
+          );
+        }
         const msg =
           typeof data.error === "string"
             ? data.error
@@ -1215,7 +1254,11 @@ export default function ChatPage() {
         title: "Sorting failed",
         body: (
           <p className="text-muted-foreground">
-            {e instanceof Error ? e.message : "Sort failed"}
+            {e instanceof RateLimitedError
+              ? e.message
+              : e instanceof Error
+                ? e.message
+                : "Sort failed"}
           </p>
         ),
       });
@@ -1239,6 +1282,11 @@ export default function ChatPage() {
       const syncRes = await fetch("/api/drive/sync", { method: "POST" });
       const syncJson = await syncRes.json().catch(() => ({}));
       if (!syncRes.ok) {
+        if (syncRes.status === 429) {
+          throw new RateLimitedError(
+            typeof syncJson.error === "string" ? syncJson.error : undefined,
+          );
+        }
         const msg =
           typeof syncJson.error === "string"
             ? syncJson.error
@@ -1273,7 +1321,11 @@ export default function ChatPage() {
         title: "Resync failed",
         body: (
           <p className="text-muted-foreground">
-            {e instanceof Error ? e.message : "Resync failed"}
+            {e instanceof RateLimitedError
+              ? e.message
+              : e instanceof Error
+                ? e.message
+                : "Resync failed"}
           </p>
         ),
       });
@@ -1853,7 +1905,7 @@ export default function ChatPage() {
                   YouTube
                 </Button>
 
-                {/* Facebook — Coming Soon */}
+                {/* Facebook — Coming Soon
                 <Button
                   variant="outline"
                   size="sm"
@@ -1868,9 +1920,9 @@ export default function ChatPage() {
                     <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
                   </svg>
                   Facebook — Coming Soon
-                </Button>
+                </Button> */}
 
-                {/* Instagram — Coming Soon */}
+                {/* Instagram — Coming Soon
                 <Button
                   variant="outline"
                   size="sm"
@@ -1885,9 +1937,9 @@ export default function ChatPage() {
                     <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 1 0 0 12.324 6.162 6.162 0 0 0 0-12.324zM12 16a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm6.406-11.845a1.44 1.44 0 1 0 0 2.881 1.44 1.44 0 0 0 0-2.881z" />
                   </svg>
                   Instagram — Coming Soon
-                </Button>
+                </Button> */}
 
-                {/* TikTok — Coming Soon */}
+                {/* TikTok — Coming Soon
                 <Button
                   variant="outline"
                   size="sm"
@@ -1903,7 +1955,7 @@ export default function ChatPage() {
                   </svg>
                   TikTok — Coming Soon
                 </Button>
-              </div>
+              </div> */}
 
               {/* ── YouTube content ── */}
               {activeSocialPlatform === "youtube" && (
@@ -2499,15 +2551,28 @@ export default function ChatPage() {
                         <TooltipTrigger asChild>
                           <label
                             className={cn(
-                              "flex h-[60px] shrink-0 items-center gap-2 rounded-xl border px-3 cursor-pointer transition-colors",
-                              "bg-muted/70 border-border hover:bg-muted text-foreground",
-                              searchDriveContext &&
-                                "border-primary/40 bg-primary/10",
+                              "flex h-[60px] shrink-0 items-center gap-2 rounded-xl border px-3 transition-colors",
+                              DRIVE_CONTEXT_SEARCH_UI_DISABLED
+                                ? "cursor-not-allowed opacity-50 bg-muted/40 border-border text-muted-foreground"
+                                : cn(
+                                    "cursor-pointer bg-muted/70 border-border hover:bg-muted text-foreground",
+                                    searchDriveContext &&
+                                      "border-primary/40 bg-primary/10",
+                                  ),
                             )}
                           >
                             <Switch
-                              checked={searchDriveContext}
-                              onCheckedChange={setSearchDriveContext}
+                              checked={
+                                DRIVE_CONTEXT_SEARCH_UI_DISABLED
+                                  ? false
+                                  : searchDriveContext
+                              }
+                              onCheckedChange={
+                                DRIVE_CONTEXT_SEARCH_UI_DISABLED
+                                  ? undefined
+                                  : setSearchDriveContext
+                              }
+                              disabled={DRIVE_CONTEXT_SEARCH_UI_DISABLED}
                               aria-label="Search Drive for context"
                               className="data-[state=unchecked]:bg-muted data-[state=unchecked]:border data-[state=unchecked]:border-border data-[state=checked]:bg-primary data-[state=checked]:border-primary"
                             />
@@ -2520,14 +2585,25 @@ export default function ChatPage() {
                           side="top"
                           className="max-w-[15rem] px-3 py-2"
                         >
-                          <p className="text-center text-balance text-xs leading-relaxed">
-                            <span className="font-semibold">On:</span> include
-                            Google Drive context in replies.
-                          </p>
-                          <p className="text-center text-balance text-xs leading-relaxed mt-2 pt-2 border-t border-background/25">
-                            <span className="font-semibold">Off:</span> skip
-                            Drive search for faster responses.
-                          </p>
+                          {DRIVE_CONTEXT_SEARCH_UI_DISABLED ? (
+                            <p className="text-center text-balance text-xs leading-relaxed">
+                              Temporarily disabled — automatic Drive search is
+                              off for the demo to save quota and keep responses
+                              fast. Event summaries you pick from pills still work
+                              when Drive is connected.
+                            </p>
+                          ) : (
+                            <>
+                              <p className="text-center text-balance text-xs leading-relaxed">
+                                <span className="font-semibold">On:</span>{" "}
+                                include Google Drive context in replies.
+                              </p>
+                              <p className="text-center text-balance text-xs leading-relaxed mt-2 pt-2 border-t border-background/25">
+                                <span className="font-semibold">Off:</span> skip
+                                Drive search for faster responses.
+                              </p>
+                            </>
+                          )}
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>

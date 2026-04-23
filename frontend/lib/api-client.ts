@@ -2,6 +2,8 @@
  * API client for AI Content Assistant backend
  */
 
+import { RateLimitedError } from '@/lib/rate-limit';
+
 // On server-side (Next.js API routes), use BACKEND_URL (works in Docker)
 // On client-side (browser), use NEXT_PUBLIC_BACKEND_URL
 const BACKEND_URL = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
@@ -23,6 +25,9 @@ export class BackendAPIClient {
       body: JSON.stringify({ content_type: contentType }),
     });
 
+    if (response.status === 429) {
+      throw new RateLimitedError();
+    }
     if (!response.ok) {
       throw new Error(`Failed to create chat: ${response.statusText}`);
     }
@@ -64,6 +69,9 @@ export class BackendAPIClient {
       body: JSON.stringify(body),
     });
 
+    if (response.status === 429) {
+      throw new RateLimitedError();
+    }
     if (!response.ok) {
       throw new Error(`Failed to send message: ${response.statusText}`);
     }
@@ -202,6 +210,9 @@ export class BackendAPIClient {
    */
   async sortDrive(): Promise<{ message: string; stats: Record<string, number>; timestamp: string }> {
     const response = await fetch(`${this.baseUrl}/api/drive/sort`, { method: 'POST' });
+    if (response.status === 429) {
+      throw new RateLimitedError();
+    }
     if (!response.ok) {
       const body = await response.json().catch(() => ({}));
       const msg = body.detail ?? body.error ?? response.statusText;
@@ -215,6 +226,9 @@ export class BackendAPIClient {
    */
   async syncDrive(): Promise<{ message: string; files_found: number; timestamp: string }> {
     const response = await fetch(`${this.baseUrl}/api/drive/sync`, { method: 'POST' });
+    if (response.status === 429) {
+      throw new RateLimitedError();
+    }
     if (!response.ok) {
       const body = await response.json().catch(() => ({}));
       const msg = body.detail ?? body.error ?? response.statusText;

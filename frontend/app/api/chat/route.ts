@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { BackendAPIClient } from '@/lib/api-client'
 import { toBackendContentType } from '@/lib/content-types'
+import { RateLimitedError, RATE_LIMIT_USER_MESSAGE } from '@/lib/rate-limit'
 
 const backendAPI = new BackendAPIClient();
 
@@ -37,8 +38,14 @@ export async function POST(request: NextRequest) {
         contextFilesUsed: response.context_files_used,
       });
     } catch (backendError) {
+      if (backendError instanceof RateLimitedError) {
+        return NextResponse.json(
+          { error: RATE_LIMIT_USER_MESSAGE, code: 'rate_limit' },
+          { status: 429 },
+        )
+      }
       console.error('[API] Backend error, falling back to demo:', backendError);
-      
+
       // Fallback to demo response if backend is unavailable
       const demoResponse = getDemoResponse(contentType);
       
