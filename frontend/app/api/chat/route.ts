@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { BackendAPIClient } from '@/lib/api-client'
+import { BackendAPIClient, ChatSessionNotFoundError } from '@/lib/api-client'
 import { toBackendContentType } from '@/lib/content-types'
 import { RateLimitedError, RATE_LIMIT_USER_MESSAGE } from '@/lib/rate-limit'
 
@@ -15,28 +15,45 @@ export async function POST(request: NextRequest) {
 
     // Try to call actual backend API
     try {
-      // Check if we have a chat ID, if not create one
-      let sessionChatId = chatId;
-      
-      if (!sessionChatId) {
-        const createResponse = await backendAPI.createChat(backendContentType);
-        sessionChatId = createResponse.chat_id;
-      }
-
-      // Send message to backend (optional: context summary, image attachments)
-      const response = await backendAPI.sendMessage(sessionChatId, message, {
+      const sendOpts = {
         context_file_id: summaryFileId || undefined,
         image_drive_ids: Array.isArray(imageDriveIds) ? imageDriveIds : undefined,
         image_inline: Array.isArray(imageInline) ? imageInline : undefined,
-        include_drive_context: typeof includeDriveContext === "boolean" ? includeDriveContext : undefined,
-      });
+        include_drive_context:
+          typeof includeDriveContext === 'boolean' ? includeDriveContext : undefined,
+      }
+
+      let sessionChatId: string | undefined =
+        typeof chatId === 'string' && chatId.trim() ? chatId.trim() : undefined
+
+      if (!sessionChatId) {
+        const createResponse = await backendAPI.createChat(backendContentType)
+        sessionChatId = createResponse.chat_id
+      }
+
+      let response: Awaited<ReturnType<BackendAPIClient['sendMessage']>>
+      let backendChatRecovered = false
+      try {
+        response = await backendAPI.sendMessage(sessionChatId, message, sendOpts)
+      } catch (err) {
+        // Stale backendChatId in browser localStorage after server reset / new instance
+        if (err instanceof ChatSessionNotFoundError && chatId) {
+          const createResponse = await backendAPI.createChat(backendContentType)
+          sessionChatId = createResponse.chat_id
+          response = await backendAPI.sendMessage(sessionChatId, message, sendOpts)
+          backendChatRecovered = true
+        } else {
+          throw err
+        }
+      }
 
       return NextResponse.json({
         message: response.message,
         contentType,
         chatId: sessionChatId,
         contextFilesUsed: response.context_files_used,
-      });
+        ...(backendChatRecovered ? { backendChatRecovered: true } : {}),
+      })
     } catch (backendError) {
       if (backendError instanceof RateLimitedError) {
         return NextResponse.json(

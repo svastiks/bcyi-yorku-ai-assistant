@@ -4,6 +4,15 @@
 
 import { RateLimitedError } from '@/lib/rate-limit';
 
+/** Backend has no chat with this id (e.g. server storage reset; browser still had backendChatId). */
+export class ChatSessionNotFoundError extends Error {
+  readonly code = 'chat_not_found' as const;
+  constructor() {
+    super('Chat session not found on server');
+    this.name = 'ChatSessionNotFoundError';
+  }
+}
+
 // On server-side (Next.js API routes), use BACKEND_URL (works in Docker)
 // On client-side (browser), use NEXT_PUBLIC_BACKEND_URL
 const BACKEND_URL = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
@@ -71,6 +80,9 @@ export class BackendAPIClient {
 
     if (response.status === 429) {
       throw new RateLimitedError();
+    }
+    if (response.status === 404) {
+      throw new ChatSessionNotFoundError();
     }
     if (!response.ok) {
       throw new Error(`Failed to send message: ${response.statusText}`);

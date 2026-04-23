@@ -1,5 +1,5 @@
 """Chat API endpoints"""
-from fastapi import APIRouter, HTTPException, Depends, Request
+from fastapi import APIRouter, HTTPException, Depends, Request, Response
 from fastapi.responses import StreamingResponse
 from app.models.chat import ChatSession, CreateChatRequest, SendMessageRequest, ChatMessage
 from app.models.content import GeneratedContent
@@ -135,7 +135,9 @@ def _resolve_image_parts(
 
 @router.post("/create", response_model=dict)
 @limiter.limit(settings.rate_limit_chat_create)
-async def create_chat(request: Request, payload: CreateChatRequest):
+async def create_chat(
+    request: Request, response: Response, payload: CreateChatRequest
+):
     """Create a new chat session"""
     try:
         chat_id = str(uuid4())
@@ -189,6 +191,7 @@ async def get_chat(chat_id: str):
 @limiter.limit(settings.rate_limit_chat_message)
 async def send_message(
     request: Request,
+    response: Response,
     chat_id: str,
     payload: SendMessageRequest,
     gemini_client: GeminiClient = Depends(get_gemini_client),

@@ -144,7 +144,7 @@ async def auth_disconnect():
 
 @router.post("/sync")
 @limiter.limit(settings.rate_limit_drive_sync)
-async def sync_drive(request: Request):
+async def sync_drive(request: Request, response: Response):
     """Trigger file sync from Google Drive (OAuth)."""
     try:
         credentials = get_drive_credentials()
@@ -159,7 +159,7 @@ async def sync_drive(request: Request):
 
 @router.post("/sort")
 @limiter.limit(settings.rate_limit_drive_sort)
-async def sort_files(request: Request):
+async def sort_files(request: Request, response: Response):
     """Run file sorting algorithm - uses OAuth Drive."""
     try:
         credentials = get_drive_credentials()
