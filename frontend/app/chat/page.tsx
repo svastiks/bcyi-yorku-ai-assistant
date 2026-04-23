@@ -322,12 +322,17 @@ function SortDriveResultBody({ data }: { data: SortDriveApiResponse }) {
       )}
       {moved.length > 0 && (
         <div>
-          <p className="font-medium text-foreground mb-1.5">Moved into folders</p>
+          <p className="font-medium text-foreground mb-1.5">
+            Moved into folders
+          </p>
           <ul className="max-h-48 overflow-y-auto rounded-md border bg-muted/30 px-3 py-2 space-y-1.5 text-xs">
             {moved.map((s) => (
               <li key={`${s.name}-${s.target_folder}`}>
                 <span className="text-foreground">{s.name}</span>
-                <span className="text-muted-foreground"> → {s.target_folder}</span>
+                <span className="text-muted-foreground">
+                  {" "}
+                  → {s.target_folder}
+                </span>
               </li>
             ))}
           </ul>
@@ -346,7 +351,10 @@ function SortDriveResultBody({ data }: { data: SortDriveApiResponse }) {
             {alreadyPlaced.map((s) => (
               <li key={`${s.name}-${s.target_folder}`}>
                 <span className="text-foreground">{s.name}</span>
-                <span className="text-muted-foreground"> → {s.target_folder}</span>
+                <span className="text-muted-foreground">
+                  {" "}
+                  → {s.target_folder}
+                </span>
               </li>
             ))}
           </ul>
@@ -614,7 +622,9 @@ export default function ChatPage() {
     }
     if (!res.ok) {
       throw new Error(
-        typeof data.error === "string" ? data.error : "Failed to fetch response",
+        typeof data.error === "string"
+          ? data.error
+          : "Failed to fetch response",
       );
     }
     const newBackendId = data.chatId || null;
@@ -771,9 +781,7 @@ export default function ChatPage() {
       setDriveResultDialog({
         variant: "error",
         title: "Couldn’t connect Google Drive",
-        body: (
-          <p className="text-muted-foreground break-words">{err}</p>
-        ),
+        body: <p className="text-muted-foreground break-words">{err}</p>,
       });
       window.history.replaceState({}, "", window.location.pathname);
     }
@@ -1955,7 +1963,6 @@ export default function ChatPage() {
                   </svg>
                   TikTok — Coming Soon
                 </Button> */}
-
               </div>
 
               {/* ── YouTube content ── */}
@@ -2588,10 +2595,9 @@ export default function ChatPage() {
                         >
                           {DRIVE_CONTEXT_SEARCH_UI_DISABLED ? (
                             <p className="text-center text-balance text-xs leading-relaxed">
-                              Temporarily disabled — automatic Drive search is
-                              off for the demo to save quota and keep responses
-                              fast. Event summaries you pick from pills still work
-                              when Drive is connected.
+                              Temporarily disabled automatic Drive search due to
+                              a dependency issue. Event summaries you pick from
+                              pills still work when Drive is connected.
                             </p>
                           ) : (
                             <>
@@ -2666,9 +2672,9 @@ export default function ChatPage() {
                           <p>
                             This runs the organizer and may move files into
                             folders based on naming rules. Changes apply
-                            directly in your Drive. Make sure you are comfortable
-                            with the rules before continuing — there is no
-                            automatic undo.
+                            directly in your Drive. Make sure you are
+                            comfortable with the rules before continuing — there
+                            is no automatic undo.
                           </p>
                         </>
                       )}
@@ -2676,7 +2682,9 @@ export default function ChatPage() {
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                  <AlertDialogCancel type="button">No, cancel</AlertDialogCancel>
+                  <AlertDialogCancel type="button">
+                    No, cancel
+                  </AlertDialogCancel>
                   <Button
                     type="button"
                     variant={
